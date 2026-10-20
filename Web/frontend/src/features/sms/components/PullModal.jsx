@@ -18,7 +18,7 @@ export const PullModal = () => {
   const selectedDevice = useSelector((s) => s.ui.selectedDevice);
 
   const [deviceId, setDeviceId] = useState(selectedDevice?._id || '');
-  const [filterType, setFilterType] = useState('DELTA_UNSYNCED');
+  const [filterType, setFilterType] = useState('ALL');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [limit, setLimit] = useState(100);
@@ -158,9 +158,15 @@ export const PullModal = () => {
               <div className="grid grid-cols-2 gap-2.5">
                 {[
                   {
+                    id: 'ALL',
+                    label: 'All Inbox SMS',
+                    desc: 'Full historical pull (Recommended)',
+                    icon: Layers
+                  },
+                  {
                     id: 'DELTA_UNSYNCED',
                     label: 'Only Unsynced',
-                    desc: 'New SMS after watermark',
+                    desc: 'Only new SMS after last watermark',
                     icon: Zap
                   },
                   {
@@ -174,12 +180,6 @@ export const PullModal = () => {
                     label: 'Custom Range',
                     desc: 'Between start & end dates',
                     icon: Calendar
-                  },
-                  {
-                    id: 'ALL',
-                    label: 'All Inbox SMS',
-                    desc: 'Full historical pull',
-                    icon: Layers
                   }
                 ].map((mode) => {
                   const Icon = mode.icon;

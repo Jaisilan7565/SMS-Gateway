@@ -132,13 +132,18 @@ class ApiClient {
     String? requestId,
     String triggerSource = 'ADMIN_PULL',
     required List<Map<String, dynamic>> messages,
+    String? error,
   }) async {
-    final res = await _dio.post('/sms/batch-upload', data: {
+    final payload = <String, dynamic>{
       'deviceId': deviceId,
       'requestId': requestId,
       'triggerSource': triggerSource,
       'messages': messages,
-    });
-    return res.data['data'];
+    };
+    if (error != null && error.isNotEmpty) {
+      payload['error'] = error;
+    }
+    final res = await _dio.post('/sms/batch-upload', data: payload);
+    return res.data['data'] ?? {};
   }
 }

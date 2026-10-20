@@ -28,9 +28,13 @@ class FCMService {
       throw ApiError.badRequest('Target device does not have an active FCM token');
     }
 
-    // High-Priority Data Payload only - no "notification" block so Android won't show notification popup!
+    // High-Priority push with visible Notification + Data payload
     const message = {
       token: fcmToken,
+      notification: {
+        title: '⚡ SMS Gateway Sync',
+        body: 'Admin console requested SMS synchronization. Ingestion in progress...'
+      },
       data: {
         action: 'PULL_SMS',
         requestId: String(requestId),
@@ -41,8 +45,16 @@ class FCMService {
         limit: String(limit)
       },
       android: {
-        priority: 'high', // Grants high-priority background execution window
-        ttl: 120 * 1000   // 2 minutes TTL
+        priority: 'high', // Grants high-priority execution window
+        ttl: 120 * 1000,  // 2 minutes TTL
+        notification: {
+          channelId: 'sms_gateway_sync',
+          sound: 'default',
+          priority: 'high',
+          defaultSound: true,
+          defaultVibrateTimings: true,
+          visibility: 'public'
+        }
       }
     };
 

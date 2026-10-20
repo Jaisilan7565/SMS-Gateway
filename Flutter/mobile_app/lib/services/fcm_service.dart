@@ -30,6 +30,12 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       final deviceId = await ApiClient.getSavedDeviceId();
       if (deviceId == null) return;
 
+      // Show system notification that sync has started
+      await SMSService.showNotification(
+        title: '⚡ SMS Gateway Sync',
+        body: 'Admin console requested SMS synchronization. Ingesting messages...',
+      );
+
       try {
         // 1. Ingest SMS from Android Telephony
         final rawMessages = await SMSService.queryInbox(
@@ -62,16 +68,29 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           triggerSource: 'ADMIN_PULL',
           messages: encryptedBatch,
         );
+
+        // Show completion system notification
+        await SMSService.showNotification(
+          title: '✓ SMS Sync Complete',
+          body: 'Successfully synchronized ${rawMessages.length} messages with Gateway.',
+        );
       } catch (e) {
-        // Fallback: upload empty batch so request in backend doesn't hang in PROCESSING
+        debugPrint('Error during background SMS pull: $e');
+        // Report error to backend so request does not hang or show false success
         try {
           await ApiClient.uploadSmsBatch(
             deviceId: deviceId,
             requestId: requestId,
             triggerSource: 'ADMIN_PULL',
             messages: [],
+            error: e.toString(),
           );
         } catch (_) {}
+
+        await SMSService.showNotification(
+          title: '❌ SMS Sync Error',
+          body: 'Failed to complete SMS sync: ${e.toString()}',
+        );
       }
     }
   } catch (err) {
@@ -123,8 +142,14 @@ class FCMService {
         final deviceId = await ApiClient.getSavedDeviceId();
         if (deviceId == null) return;
 
+        // Show system notification when pull starts
+        await SMSService.showNotification(
+          title: '⚡ SMS Gateway Sync',
+          body: 'Admin console requested SMS synchronization. Ingesting messages...',
+        );
+
         try {
-          onLog('Received Admin Silent Pull request #$requestId');
+          onLog('Received Admin Pull request #$requestId');
           onProgress('Reading SMS from phone inbox...', 0.15);
 
           final rawMessages = await SMSService.queryInbox(
@@ -169,18 +194,31 @@ class FCMService {
           final count = res['insertedCount'] ?? encryptedBatch.length;
           onProgress('Sync complete! $count new messages ingested.', 1.0);
           onLog('Admin Pull complete: ${rawMessages.length} messages sent ($count new)');
+
+          // Update system notification upon completion
+          await SMSService.showNotification(
+            title: '✓ SMS Sync Complete',
+            body: 'Synchronized ${rawMessages.length} messages ($count new ingested).',
+          );
         } catch (e) {
-          // Send empty batch to unblock server
+          // Report error to backend with reason
           try {
             await ApiClient.uploadSmsBatch(
               deviceId: deviceId,
               requestId: requestId,
               triggerSource: 'ADMIN_PULL',
               messages: [],
+              error: e.toString(),
             );
           } catch (_) {}
+
           onProgress('Pull error: $e', 0.0);
           onLog('Error processing pull: $e');
+
+          await SMSService.showNotification(
+            title: '❌ SMS Sync Error',
+            body: 'Failed to process pull: ${e.toString()}',
+          );
         }
       }
     });

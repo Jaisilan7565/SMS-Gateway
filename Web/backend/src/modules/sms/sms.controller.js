@@ -24,13 +24,14 @@ class SMSController {
 
   async batchUpload(req, res, next) {
     try {
-      const { deviceId, requestId, triggerSource, messages } = req.body;
+      const { deviceId, requestId, triggerSource, messages, error } = req.body;
       const result = await smsService.batchUpload({
         userId: req.user._id,
         deviceId,
         requestId,
         triggerSource,
-        messages
+        messages,
+        error
       });
 
       return ApiResponse.success(res, result, 'Encrypted SMS batch uploaded and stored successfully');

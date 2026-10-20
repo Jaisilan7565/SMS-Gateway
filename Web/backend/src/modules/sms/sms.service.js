@@ -40,6 +40,16 @@ class SMSService {
       watermark = today.getTime();
     }
 
+    // Normalize dateTo to end of day if it was provided as a date string without time
+    let processedDateTo = null;
+    if (dateTo) {
+      const dTo = new Date(dateTo);
+      if (dTo.getUTCHours() === 0 && dTo.getUTCMinutes() === 0 && dTo.getUTCSeconds() === 0) {
+        dTo.setHours(23, 59, 59, 999);
+      }
+      processedDateTo = dTo;
+    }
+
     // Create SyncRequest in database
     const syncRequest = await SyncRequest.create({
       requestedBy: adminId,
@@ -50,7 +60,7 @@ class SMSService {
       filterCriteria: {
         watermark,
         dateFrom: dateFrom ? new Date(dateFrom) : undefined,
-        dateTo: dateTo ? new Date(dateTo) : undefined,
+        dateTo: processedDateTo || (dateTo ? new Date(dateTo) : undefined),
         limit
       },
       status: SYNC_REQUEST_STATUS.PENDING
@@ -66,7 +76,7 @@ class SMSService {
       userAgent
     });
 
-    // Dispatch silent FCM High-Priority Push to Android device
+    // Dispatch FCM High-Priority Push to Android device
     try {
       await fcmService.sendPullTrigger({
         fcmToken: device.fcmToken,
@@ -74,7 +84,7 @@ class SMSService {
         filterType,
         watermark,
         dateFrom: dateFrom ? new Date(dateFrom).getTime() : null,
-        dateTo: dateTo ? new Date(dateTo).getTime() : null,
+        dateTo: processedDateTo ? processedDateTo.getTime() : (dateTo ? new Date(dateTo).getTime() : null),
         limit
       });
 
@@ -102,7 +112,7 @@ class SMSService {
    * Receives encrypted batch of messages from Android app
    * (Supports both FCM-triggered response and Mobile User Manual Push!)
    */
-  async batchUpload({ userId, deviceId, requestId, triggerSource, messages }) {
+  async batchUpload({ userId, deviceId, requestId, triggerSource, messages, error }) {
     const device = await Device.findOne({ _id: deviceId, userId });
     if (!device) {
       throw ApiError.notFound('Device verification failed');
@@ -122,6 +132,26 @@ class SMSService {
       });
     }
 
+    // Handle device-reported errors gracefully
+    if (error) {
+      logger.warn(`Mobile batch upload reported error for device ${deviceId}, request ${requestId}: ${error}`);
+      if (syncRequest) {
+        syncRequest.status = SYNC_REQUEST_STATUS.FAILED;
+        syncRequest.failureReason = error;
+        syncRequest.completedAt = new Date();
+        await syncRequest.save();
+      }
+
+      notifyAdmins('sync:failed', {
+        requestId: syncRequest?._id,
+        deviceId: device._id,
+        deviceName: device.deviceName,
+        error
+      });
+
+      return { count: 0, error };
+    }
+
     if (!messages || messages.length === 0) {
       if (syncRequest) {
         syncRequest.status = SYNC_REQUEST_STATUS.COMPLETED;
@@ -135,10 +165,12 @@ class SMSService {
         deviceId: device._id,
         deviceName: device.deviceName,
         count: 0,
-        messages: []
+        messages: [],
+        filterType: syncRequest?.filterType,
+        watermark: device.lastSyncWatermark || 0
       });
 
-      return { count: 0, totalSynced: 0 };
+      return { count: 0, totalSynced: 0, watermark: device.lastSyncWatermark || 0 };
     }
 
     // Process and deduplicate messages

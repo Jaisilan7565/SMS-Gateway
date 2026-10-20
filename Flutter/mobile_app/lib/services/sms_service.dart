@@ -41,6 +41,16 @@ class SMSService {
     return result.map((item) => Map<String, dynamic>.from(item as Map)).toList();
   }
 
+  /// Displays a local Android system notification via MethodChannel
+  static Future<void> showNotification({required String title, required String body}) async {
+    try {
+      await _channel.invokeMethod('showNotification', {
+        'title': title,
+        'body': body,
+      });
+    } catch (_) {}
+  }
+
   /// Detects active SIM cards and carrier display names
   static Future<Map<String, dynamic>> getSimSlots() async {
     try {

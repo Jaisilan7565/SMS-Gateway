@@ -22,6 +22,7 @@ export const batchUploadSchema = {
     triggerSource: Joi.string()
       .valid(...Object.values(SYNC_TRIGGER_SOURCE))
       .default(SYNC_TRIGGER_SOURCE.ADMIN_PULL),
+    error: Joi.string().allow('', null).optional(),
     messages: Joi.array()
       .items(
         Joi.object({
@@ -38,7 +39,8 @@ export const batchUploadSchema = {
           isRead: Joi.boolean().default(false)
         })
       )
-      .required()
+      .optional()
+      .default([])
   })
 };
 
