@@ -1,0 +1,234 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   TAILWIND CSS v4 THEME TOKENS
+   ========================================================================== */
+@theme {
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+
+  --color-brand-950: var(--brand-950);
+  --color-brand-900: var(--brand-900);
+  --color-brand-800: var(--brand-800);
+  --color-brand-700: var(--brand-700);
+  --color-brand-600: var(--brand-600);
+  --color-brand-400: var(--brand-400);
+  --color-brand-200: var(--brand-200);
+  --color-brand-100: var(--brand-100);
+  --color-brand-50: var(--brand-50);
+
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-todo: var(--todo);
+
+  --shadow-card: 0 1px 2px rgba(17, 20, 18, 0.03);
+  --shadow-lift: 0 18px 40px -12px rgba(17, 20, 18, 0.22);
+  --shadow-hero: 0 12px 28px -10px color-mix(in srgb, var(--brand-900) 55%, transparent);
+
+  --radius-card: 20px;
+  --radius-panel: 28px;
+}
+
+/* ==========================================================================
+   SOLID SURFACE & COLOR CLASS FALLBACKS (Zero-transparency guarantee)
+   ========================================================================== */
+.bg-canvas {
+  background-color: var(--canvas, #E9EBE9) !important;
+}
+.bg-panel {
+  background-color: var(--panel, #F5F6F5) !important;
+}
+.bg-card {
+  background-color: var(--card, #FDFDFC) !important;
+}
+.border-line {
+  border-color: var(--line, #ECEEEC);
+}
+.border-line-strong {
+  border-color: var(--line-strong, #DADDDB);
+}
+.text-ink {
+  color: var(--ink, #111412);
+}
+.text-ink-2 {
+  color: var(--ink-2, #3D4540);
+}
+.text-muted {
+  color: var(--muted, #737B76);
+}
+.text-subtle {
+  color: var(--subtle, #9AA29D);
+}
+.bg-brand-950 {
+  background-color: var(--brand-950, #072013);
+}
+.bg-brand-900 {
+  background-color: var(--brand-900, #0D3A23);
+}
+.bg-brand-800 {
+  background-color: var(--brand-800, #145534);
+}
+.bg-brand-700 {
+  background-color: var(--brand-700, #1D7347);
+}
+.bg-brand-100 {
+  background-color: var(--brand-100, #E3F2E9);
+}
+.bg-brand-50 {
+  background-color: var(--brand-50, #F0F8F3);
+}
+.text-brand-900 {
+  color: var(--brand-900, #0D3A23);
+}
+.text-brand-800 {
+  color: var(--brand-800, #145534);
+}
+.text-brand-700 {
+  color: var(--brand-700, #1D7347);
+}
+.text-brand-400 {
+  color: var(--brand-400, #5DBD8B);
+}
+.text-brand-200 {
+  color: var(--brand-200, #BFE3CE);
+}
+
+/* ==========================================================================
+   EDUTECHLAB DESIGN SYSTEM — "CALM ORGANIC PRODUCTIVITY"
+   ========================================================================== */
+
+:root {
+  /* Neutral surfaces — three stacked layers: canvas → panel → card */
+  --canvas: #E9EBE9;        /* outer window background */
+  --panel: #F5F6F5;         /* sidebar, header bar, main content panel */
+  --card: #FDFDFC;          /* every widget card */
+  --line: #ECEEEC;          /* hairline borders / dividers */
+  --line-strong: #DADDDB;   /* outlined buttons, inputs */
+
+  /* Typography */
+  --ink: #111412;           /* headings, numbers */
+  --ink-2: #3D4540;         /* body text */
+  --muted: #737B76;         /* secondary text, nav labels */
+  --subtle: #9AA29D;        /* captions, axis labels */
+
+  /* Accent scale — Forest (default) */
+  --brand-950: #072013;     /* dark contour surfaces (hero cards, time trackers) */
+  --brand-900: #0D3A23;     /* darkest button gradient end */
+  --brand-800: #145534;     /* primary buttons, active pills */
+  --brand-700: #1D7347;     /* nav indicator, logo, live badge */
+  --brand-600: #27865A;     /* progress bars, done status */
+  --brand-400: #5DBD8B;     /* light accent */
+  --brand-200: #BFE3CE;     /* light tint */
+  --brand-100: #E3F2E9;     /* tinted chips, selected nav fill */
+  --brand-50: #F0F8F3;      /* hover tint */
+
+  /* Status */
+  --danger: #D7263D;
+  --warning: #E8A317;
+  --info: #3B5BDB;
+  --todo: #8D9A92;
+
+  /* Shape */
+  --radius-card: 20px;
+  --radius-panel: 28px;
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px rgba(17, 20, 18, 0.03);
+  --shadow-lift: 0 18px 40px -12px rgba(17, 20, 18, 0.22);
+  --shadow-hero: 0 12px 28px -10px color-mix(in srgb, var(--brand-900) 55%, transparent);
+}
+
+/* Accent 2 — Ocean */
+[data-theme="ocean"] {
+  --brand-950: #061430;
+  --brand-900: #0F2754;
+  --brand-800: #173A7A;
+  --brand-700: #214A9A;
+  --brand-600: #2B5BB8;
+  --brand-400: #6A92D9;
+  --brand-200: #C4D5F2;
+  --brand-100: #E3EBF8;
+  --brand-50: #F1F5FC;
+}
+
+/* Accent 3 — Plum */
+[data-theme="plum"] {
+  --brand-950: #1A0B2E;
+  --brand-900: #2E1452;
+  --brand-800: #45207A;
+  --brand-700: #5B2C9C;
+  --brand-600: #6D3BB5;
+  --brand-400: #A486DB;
+  --brand-200: #DACCF2;
+  --brand-100: #EEE7FA;
+  --brand-50: #F7F3FD;
+}
+
+/* Accent 4 — Ember */
+[data-theme="ember"] {
+  --brand-950: #2A0F05;
+  --brand-900: #4A1D0B;
+  --brand-800: #6E2D12;
+  --brand-700: #8F3D1A;
+  --brand-600: #A94C22;
+  --brand-400: #E08A5A;
+  --brand-200: #F4CDB6;
+  --brand-100: #FBE9DE;
+  --brand-50: #FDF5EF;
+}
+
+/* Accent 5 — Console (Neutral) */
+[data-theme="console"] {
+  --brand-950: #0B0D0C;
+  --brand-900: #171A18;
+  --brand-800: #1F2421;
+  --brand-700: #3D4540;
+  --brand-600: #56605A;
+  --brand-400: #9AA29D;
+  --brand-200: #D5DAD7;
+  --brand-100: #ECEEEC;
+  --brand-50: #F4F5F4;
+}
+
+/* Tabular figures for numbers so counting digits don't jitter */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Primary Button with smooth gradient */
+.btn-primary {
+  background: linear-gradient(180deg, var(--brand-800), var(--brand-900));
+  color: white;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--brand-700), var(--brand-800));
+  transform: translateY(-1px);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

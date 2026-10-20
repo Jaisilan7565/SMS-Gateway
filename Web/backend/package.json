@@ -1,0 +1,44 @@
+{
+  "name": "sms-transfer-backend",
+  "version": "1.0.0",
+  "description": "3-Layer REST API & Real-time SMS Sync Engine with AES-256-GCM Military Grade Encryption",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "seed": "node src/database/seeders/seedAdmin.js"
+  },
+  "keywords": [
+    "sms",
+    "sync",
+    "express",
+    "aes-256-gcm",
+    "socket.io",
+    "fcm",
+    "mongodb"
+  ],
+  "author": "TechGlora",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "firebase-admin": "^13.1.0",
+    "google-auth-library": "^9.15.1",
+    "helmet": "^8.0.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.10.0",
+    "socket.io": "^4.8.1",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

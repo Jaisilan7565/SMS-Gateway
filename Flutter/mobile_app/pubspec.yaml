@@ -1,0 +1,40 @@
+name: mobile_app
+description: "Android Native SMS Sync Gateway Client with AES-256-GCM Military Grade Encryption"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Military-Grade Cryptography (AES-256-GCM + HKDF SHA-256)
+  cryptography: ^2.7.0
+
+  # Networking & Keystore Storage
+  dio: ^5.7.0
+  flutter_secure_storage: ^9.2.2
+
+  # Device Hardware & Telephony Telemetry
+  device_info_plus: ^10.1.2
+  battery_plus: ^6.0.2
+  permission_handler: ^11.3.1
+
+  # Google OAuth & Firebase Cloud Messaging
+  google_sign_in: ^6.2.2
+  firebase_core: ^3.8.1
+  firebase_messaging: ^15.1.6
+
+  # UI & Formatting
+  intl: ^0.19.0
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
