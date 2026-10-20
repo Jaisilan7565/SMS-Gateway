@@ -42,10 +42,7 @@ services:
       - key: FIREBASE_SERVICE_ACCOUNT_JSON
         sync: false # Paste raw JSON or base64 of firebase-service-account.json
       - key: CORS_ORIGIN
-        fromService:
-          type: web
-          name: sms-transfer-frontend
-          property: url
+        value: "*"
 
   # ----------------------------------------------------------------------------
   # 2. React Admin Dashboard (Render Static Site)
@@ -66,4 +63,4 @@ services:
         fromService:
           type: web
           name: sms-transfer-backend
-          property: url
+          property: host

@@ -11,7 +11,13 @@ export const connectSocket = () => {
   }
 
   // Connect to backend origin or proxy host
-  const socketOrigin = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  const rawApiBase = import.meta.env.VITE_API_BASE_URL || '';
+  const socketOrigin = rawApiBase
+    ? rawApiBase.startsWith('http://') || rawApiBase.startsWith('https://')
+      ? rawApiBase
+      : `https://${rawApiBase}`
+    : window.location.origin;
+
   socket = io(socketOrigin, {
     auth: { token },
     reconnection: true,
