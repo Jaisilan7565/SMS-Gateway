@@ -1,0 +1,68 @@
+# ==============================================================================
+# Render Infrastructure as Code (Blueprint)
+# Documentation: https://render.com/docs/blueprint-spec
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Backend API & WebSocket Engine (Render Web Service)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: sms-transfer-backend
+    runtime: node
+    rootDir: Web/backend
+    plan: free
+    region: oregon # or frankfurt, singapore, ohio
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false # User will input their MongoDB Atlas connection string
+      - key: JWT_SECRET
+        generateValue: true # Render will securely generate a 256-bit secret
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: ENCRYPTION_MASTER_KEY
+        generateValue: true # Render will securely generate 32-character master key
+      - key: ADMIN_EMAIL
+        value: admin@sms.com
+      - key: ADMIN_PASSWORD
+        value: Admin@1234
+      - key: ADMIN_NAME
+        value: Super Administrator
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false # Paste raw JSON or base64 of firebase-service-account.json
+      - key: CORS_ORIGIN
+        fromService:
+          type: web
+          name: sms-transfer-frontend
+          property: url
+
+  # ----------------------------------------------------------------------------
+  # 2. React Admin Dashboard (Render Static Site)
+  # ----------------------------------------------------------------------------
+  - type: static
+    name: sms-transfer-frontend
+    rootDir: Web/frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      # SPA rewrite rule so React client-side routing works on page refreshes
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: sms-transfer-backend
+          property: url

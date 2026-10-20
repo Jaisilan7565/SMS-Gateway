@@ -10,7 +10,12 @@ import logger from './src/utils/logger.js';
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
+const rawCorsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+const corsOrigin = rawCorsOrigin === '*' 
+  ? '*' 
+  : rawCorsOrigin.includes(',') 
+    ? rawCorsOrigin.split(',').map((o) => o.trim()) 
+    : rawCorsOrigin;
 
 const startServer = async () => {
   try {
@@ -29,7 +34,7 @@ const startServer = async () => {
     const httpServer = http.createServer(app);
 
     // 5. Initialize Socket.io Real-Time Engine
-    initSocket(httpServer, CORS_ORIGIN);
+    initSocket(httpServer, corsOrigin);
 
     // 6. Start Listening on all network interfaces
     httpServer.listen(PORT, '0.0.0.0', () => {

@@ -21,10 +21,16 @@ const app = express();
 app.use(helmet());
 
 // Cross-Origin Resource Sharing
-const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+const rawCorsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+const corsOrigin = rawCorsOrigin === '*' 
+  ? '*' 
+  : rawCorsOrigin.includes(',') 
+    ? rawCorsOrigin.split(',').map((o) => o.trim()) 
+    : rawCorsOrigin;
+
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: corsOrigin === '*' ? true : corsOrigin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
   })

@@ -10,8 +10,9 @@ export const connectSocket = () => {
     return socket;
   }
 
-  // Connect to the same origin or proxy host
-  socket = io(window.location.origin, {
+  // Connect to backend origin or proxy host
+  const socketOrigin = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  socket = io(socketOrigin, {
     auth: { token },
     reconnection: true,
     reconnectionAttempts: 10,

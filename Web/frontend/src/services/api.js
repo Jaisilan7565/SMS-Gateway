@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: `${API_BASE}/api/v1`,
   headers: {
     'Content-Type': 'application/json'
   },
@@ -28,7 +30,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const refreshRes = await axios.post('/api/v1/auth/refresh', {}, { withCredentials: true });
+        const refreshRes = await axios.post(`${API_BASE}/api/v1/auth/refresh`, {}, { withCredentials: true });
         const newToken = refreshRes.data?.data?.accessToken;
         if (newToken) {
           localStorage.setItem('sms_admin_token', newToken);
