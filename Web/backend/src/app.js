@@ -41,18 +41,22 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// HTTP request logger
+// HTTP request logger (skip health checks to keep logs clean)
 if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan('combined'));
+  app.use(
+    morgan('combined', {
+      skip: (req) => req.url === '/api/health' || req.url === '/health'
+    })
+  );
 }
 
-// Global rate limiting
-app.use('/api', globalLimiter);
-
-// Health check endpoint (for Render Free Tier pinging & uptime monitoring)
+// Health check endpoint (for Render load balancers & uptime monitors — exempt from rate limit)
 app.get('/api/health', (req, res) => {
   return ApiResponse.success(res, { status: 'healthy', timestamp: new Date() }, 'API Gateway Online');
 });
+
+// Global rate limiting for API endpoints
+app.use('/api', globalLimiter);
 
 // Swagger OpenAPI documentation
 setupSwagger(app);
