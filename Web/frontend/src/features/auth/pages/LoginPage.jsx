@@ -1,19 +1,21 @@
-import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
-import { motion } from 'framer-motion';
-import { Lock, Mail, ShieldCheck, ArrowRight, Radio } from 'lucide-react';
-import api from '../../../services/api';
-import { setAuth } from '../../../store/slices/authSlice';
-import { Button } from '../../../components/common/ui';
-import BrandLogo from '../../../components/common/BrandLogo';
-import { useToast } from '../../../components/common/Toast';
-import { rise } from '../../../utils/motion';
+import React, { useState } from "react";
+import { useDispatch } from "react-redux";
+import { useFormik } from "formik";
+import * as Yup from "yup";
+import { motion } from "framer-motion";
+import { Lock, Mail, ShieldCheck, ArrowRight, Radio } from "lucide-react";
+import api from "../../../services/api";
+import { setAuth } from "../../../store/slices/authSlice";
+import { Button } from "../../../components/common/ui";
+import BrandLogo from "../../../components/common/BrandLogo";
+import { useToast } from "../../../components/common/Toast";
+import { rise } from "../../../utils/motion";
 
 const loginSchema = Yup.object({
-  email: Yup.string().email('Please enter a valid email address').required('Email is required'),
-  password: Yup.string().required('Password is required')
+  email: Yup.string()
+    .email("Please enter a valid email address")
+    .required("Email is required"),
+  password: Yup.string().required("Password is required"),
 });
 
 export const LoginPage = () => {
@@ -23,24 +25,27 @@ export const LoginPage = () => {
 
   const formik = useFormik({
     initialValues: {
-      email: 'admin@sms.com',
-      password: 'Admin@1234'
+      email: "",
+      password: "",
     },
     validationSchema: loginSchema,
     onSubmit: async (values) => {
       setLoading(true);
       try {
-        const response = await api.post('/auth/admin/login', values);
+        const response = await api.post("/auth/admin/login", values);
         if (response.success && response.data) {
           dispatch(setAuth(response.data));
-          showToast('Welcome back, Super Administrator', 'success');
+          showToast("Welcome back, Super Administrator", "success");
         }
       } catch (err) {
-        showToast(err.message || 'Authentication failed. Please verify credentials.', 'error');
+        showToast(
+          err.message || "Authentication failed. Please verify credentials.",
+          "error",
+        );
       } finally {
         setLoading(false);
       }
-    }
+    },
   });
 
   return (
@@ -57,7 +62,9 @@ export const LoginPage = () => {
             <div className="flex justify-center mb-4">
               <BrandLogo size={56} />
             </div>
-            <h1 className="text-2xl font-bold text-ink tracking-tight">SMS Gateway Console</h1>
+            <h1 className="text-2xl font-bold text-ink tracking-tight">
+              SMS Gateway Console
+            </h1>
             <p className="text-[13px] text-muted mt-1">
               Military-Grade AES-256-GCM Secure SMS Synchronization
             </p>
@@ -77,12 +84,14 @@ export const LoginPage = () => {
                   value={formik.values.email}
                   onChange={formik.handleChange}
                   onBlur={formik.handleBlur}
-                  placeholder="admin@smstransfer.com"
+                  placeholder="admin@gmail.com"
                   className="w-full h-11 pl-10 pr-4 rounded-xl bg-card border border-line-strong text-[14px] text-ink focus:outline-none focus:border-brand-700 transition-colors"
                 />
               </div>
               {formik.touched.email && formik.errors.email && (
-                <p className="text-[12px] text-danger mt-1 font-medium">{formik.errors.email}</p>
+                <p className="text-[12px] text-danger mt-1 font-medium">
+                  {formik.errors.email}
+                </p>
               )}
             </div>
 
@@ -103,7 +112,9 @@ export const LoginPage = () => {
                 />
               </div>
               {formik.touched.password && formik.errors.password && (
-                <p className="text-[12px] text-danger mt-1 font-medium">{formik.errors.password}</p>
+                <p className="text-[12px] text-danger mt-1 font-medium">
+                  {formik.errors.password}
+                </p>
               )}
             </div>
 
@@ -113,7 +124,9 @@ export const LoginPage = () => {
               disabled={loading}
               className="w-full mt-2"
             >
-              <span>{loading ? 'Authenticating Gateway...' : 'Unlock Console'}</span>
+              <span>
+                {loading ? "Authenticating Gateway..." : "Unlock Console"}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </Button>
           </form>

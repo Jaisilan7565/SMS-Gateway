@@ -5,7 +5,7 @@ class ApiClient {
   static final FlutterSecureStorage _storage = const FlutterSecureStorage();
   static late Dio _dio;
   static String _baseUrl =
-      'http://172.20.10.7:5000/api/v1'; // Default Android Emulator to localhost
+      'https://sms-transfer-backend.onrender.com/api/v1'; // Default Android Emulator to localhost
 
   static Future<void> initialize() async {
     final savedUrl = await _storage.read(key: 'server_url');
@@ -89,7 +89,8 @@ class ApiClient {
     final payload = <String, dynamic>{};
     if (idToken != null && idToken.isNotEmpty) payload['idToken'] = idToken;
     if (email != null && email.isNotEmpty) payload['email'] = email;
-    if (displayName != null && displayName.isNotEmpty) payload['displayName'] = displayName;
+    if (displayName != null && displayName.isNotEmpty)
+      payload['displayName'] = displayName;
     if (photoUrl != null && photoUrl.isNotEmpty) payload['photoUrl'] = photoUrl;
     if (googleId != null && googleId.isNotEmpty) payload['googleId'] = googleId;
 
