@@ -50,8 +50,9 @@ services:
   # ----------------------------------------------------------------------------
   # 2. React Admin Dashboard (Render Static Site)
   # ----------------------------------------------------------------------------
-  - type: static
+  - type: web
     name: sms-transfer-frontend
+    runtime: static
     rootDir: Web/frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
