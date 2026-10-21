@@ -88,12 +88,13 @@ class SmsTelephonyPlugin: FlutterPlugin, MethodChannel.MethodCallHandler {
     }
 
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        appContext = flutterPluginBinding.applicationContext
+        val context = flutterPluginBinding.applicationContext
+        appContext = context
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL_NAME)
         channel?.setMethodCallHandler(this)
-        createNotificationChannel(appContext!!)
+        createNotificationChannel(context)
         instance = this
-        registerContentObserver(appContext!)
+        registerContentObserver(context)
         Log.i(TAG, "SmsTelephonyPlugin attached to engine (background or foreground)")
     }
 
