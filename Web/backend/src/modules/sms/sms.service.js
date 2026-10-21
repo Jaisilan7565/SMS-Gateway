@@ -148,12 +148,15 @@ class SMSService {
     let syncRequest = null;
     if (requestId) {
       syncRequest = await SyncRequest.findById(requestId);
-    } else if (triggerSource === SYNC_TRIGGER_SOURCE.USER_MANUAL_PUSH) {
+    } else if (
+      triggerSource === SYNC_TRIGGER_SOURCE.USER_MANUAL_PUSH ||
+      triggerSource === SYNC_TRIGGER_SOURCE.AUTO_REALTIME_PUSH
+    ) {
       syncRequest = await SyncRequest.create({
         requestedBy: userId,
         targetUserId: userId,
         deviceId: device._id,
-        triggerSource: SYNC_TRIGGER_SOURCE.USER_MANUAL_PUSH,
+        triggerSource,
         filterType: SYNC_FILTER_TYPES.DELTA_UNSYNCED,
         status: SYNC_REQUEST_STATUS.PROCESSING
       });
@@ -304,10 +307,30 @@ class SMSService {
       requestId: syncRequest?._id,
       deviceId: device._id,
       deviceName: device.deviceName,
+      triggerSource,
       count: messages.length,
       insertedCount,
       messages: decryptedForBroadcast.slice(0, 20) // send top 20 for instant preview
     });
+
+    if (insertedCount > 0) {
+      try {
+        await AuditLog.create({
+          performedBy: userId,
+          action: triggerSource === SYNC_TRIGGER_SOURCE.AUTO_REALTIME_PUSH
+            ? AUDIT_ACTIONS.AUTO_PUSH
+            : AUDIT_ACTIONS.MANUAL_PUSH,
+          targetModel: 'Device',
+          targetId: device._id,
+          metadata: {
+            triggerSource,
+            count: messages.length,
+            insertedCount,
+            sender: messages[0]?.sender
+          }
+        });
+      } catch (_) {}
+    }
 
     return {
       requestId: syncRequest?._id,

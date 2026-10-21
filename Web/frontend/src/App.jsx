@@ -99,7 +99,15 @@ export const App = () => {
           status: 'completed'
         })
       );
-      showToast(`⚡ ${data.count} new messages ingested from ${data.deviceName}!`, 'success');
+      if (data.triggerSource === 'AUTO_REALTIME_PUSH') {
+        const sender = data.messages?.[0]?.sender;
+        showToast(
+          sender ? `📩 Real-time SMS auto-forwarded from ${sender}!` : `📩 Real-time SMS forwarded from ${data.deviceName}!`,
+          'success'
+        );
+      } else {
+        showToast(`⚡ ${data.count} new messages ingested from ${data.deviceName}!`, 'success');
+      }
     });
 
     // New device registered

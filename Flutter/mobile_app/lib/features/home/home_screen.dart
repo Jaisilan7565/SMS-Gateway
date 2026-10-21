@@ -35,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isOnline = true;
   String _statusText = 'Ready & listening for silent FCM requests';
   final List<String> _activityLogs = [];
+  final Set<String> _processedSmsSignatures = <String>{};
   Timer? _heartbeatTimer;
 
   @override
@@ -185,6 +186,89 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _addLog(msg);
       },
     );
+
+    // Setup real-time automatic incoming SMS forwarder
+    await SMSService.initializeIncomingSmsListener(_handleIncomingSmsAutomatically);
+  }
+
+  /// Automatically forwards any received SMS message to the Gateway server immediately
+  Future<void> _handleIncomingSmsAutomatically(Map<String, dynamic> sms) async {
+    try {
+      final sender = (sms['sender'] as String?) ?? 'Unknown';
+      final bodyText = (sms['body'] as String?) ?? '';
+      final msgDate = sms['messageDate'] != null ? sms['messageDate'].toString() : '';
+      final smsId = (sms['smsId'] as String?) ?? 'rec_${DateTime.now().millisecondsSinceEpoch}';
+      final simSlot = (sms['simSlot'] as String?) ?? 'SIM 1';
+      final isRead = sms['isRead'] == true;
+
+      // Unique deduplication signature to prevent processing duplicate intents
+      final signature = '${sender}_${msgDate}_${bodyText.hashCode}';
+      if (_processedSmsSignatures.contains(signature) || _processedSmsSignatures.contains(smsId)) {
+        return;
+      }
+      _processedSmsSignatures.add(signature);
+      _processedSmsSignatures.add(smsId);
+      if (_processedSmsSignatures.length > 200) {
+        _processedSmsSignatures.remove(_processedSmsSignatures.first);
+      }
+
+      String deviceId = _deviceId;
+      if (deviceId.isEmpty) {
+        deviceId = (await ApiClient.getSavedDeviceId()) ?? '';
+      }
+      if (deviceId.isEmpty) {
+        _addLog('⚠️ Real-time SMS caught from $sender, but device ID is pending registration');
+        return;
+      }
+
+      if (mounted) {
+        _addLog('⚡ Incoming SMS from $sender • Encrypting with AES-256-GCM...');
+        setState(() {
+          _statusText = 'Auto-forwarding real-time SMS from $sender...';
+        });
+      }
+
+      // 1. Encrypt payload with AES-256-GCM
+      final encrypted = await CryptoService.encrypt(bodyText);
+
+      final encryptedMsg = {
+        'smsId': smsId,
+        'sender': sender,
+        'encryptedBody': encrypted['ciphertext'],
+        'iv': encrypted['iv'],
+        'authTag': encrypted['authTag'],
+        'messageDate': sms['messageDate'] ?? DateTime.now().millisecondsSinceEpoch,
+        'simSlot': simSlot,
+        'isRead': isRead,
+      };
+
+      // 2. Upload to server with AUTO_REALTIME_PUSH trigger source
+      final res = await ApiClient.uploadSmsBatch(
+        deviceId: deviceId,
+        triggerSource: 'AUTO_REALTIME_PUSH',
+        messages: [encryptedMsg],
+      );
+
+      final count = res['insertedCount'] ?? 1;
+
+      if (mounted) {
+        _addLog('✓ Auto-forwarded SMS from $sender to Gateway ($count new)');
+        setState(() {
+          _statusText = 'Auto-forwarded SMS from $sender ($simSlot)';
+          _isOnline = true;
+        });
+      }
+
+      // 3. Local notification
+      await SMSService.showNotification(
+        title: '⚡ SMS Auto-Forwarded',
+        body: 'Forwarded message from $sender to Gateway ($simSlot).',
+      );
+    } catch (e) {
+      if (mounted) {
+        _addLog('❌ Auto-forward error: ${e.toString()}');
+      }
+    }
   }
 
   void _addLog(String msg) {
@@ -367,9 +451,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       spacing: 8,
                       runSpacing: 6,
                       children: [
-                        _isOnline
-                            ? StatusBadge.good('GATEWAY ONLINE')
-                            : StatusBadge.bad('OFFLINE / RECONNECTING'),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _isOnline
+                                ? StatusBadge.good('GATEWAY ONLINE')
+                                : StatusBadge.bad('OFFLINE / RECONNECTING'),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0x3010B981),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0x6010B981)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.bolt_rounded, size: 12, color: Color(0xFF34D399)),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    'AUTO-FORWARD',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF34D399),
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -537,6 +651,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Real-time Auto-Forwarding Notice Banner
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.bolt_rounded, size: 20, color: Color(0xFF16A34A)),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Real-time Auto-Forward is active. Every incoming SMS is encrypted with AES-256-GCM and delivered to the server immediately.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF15803D), fontWeight: FontWeight.w500, height: 1.3),
                       ),
                     ),
                   ],

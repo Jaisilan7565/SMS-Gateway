@@ -57,4 +57,42 @@ class SMSService {
       };
     }
   }
+
+  static void Function(Map<String, dynamic> sms)? _incomingSmsListener;
+
+  /// Initializes real-time incoming SMS stream from native Android
+  /// Listens on MethodChannel callback 'onIncomingSms' and processes any pending messages
+  static Future<void> initializeIncomingSmsListener(void Function(Map<String, dynamic> sms) onSms) async {
+    _incomingSmsListener = onSms;
+
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'onIncomingSms') {
+        try {
+          if (call.arguments is Map) {
+            final data = Map<String, dynamic>.from(call.arguments as Map);
+            _incomingSmsListener?.call(data);
+          }
+        } catch (_) {}
+      }
+    });
+
+    // Check and dispatch any SMS that arrived while the engine was booting
+    try {
+      final pendingList = await getPendingIncomingSms();
+      for (final sms in pendingList) {
+        _incomingSmsListener?.call(sms);
+      }
+    } catch (_) {}
+  }
+
+  /// Retrieves and clears any incoming SMS queued in native Android SharedPreferences
+  static Future<List<Map<String, dynamic>>> getPendingIncomingSms() async {
+    try {
+      final result = await _channel.invokeMethod<List<dynamic>>('getPendingIncomingSms');
+      if (result == null) return [];
+      return result.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
 }

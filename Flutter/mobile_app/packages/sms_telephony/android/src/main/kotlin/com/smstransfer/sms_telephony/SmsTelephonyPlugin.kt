@@ -23,21 +23,172 @@ class SmsTelephonyPlugin: FlutterPlugin, MethodChannel.MethodCallHandler {
     private var channel: MethodChannel? = null
     private var appContext: Context? = null
     private val CHANNEL_NAME = "com.smstransfer.sms/telephony"
-    private val TAG = "SMSGatewayPlugin"
     private val NOTIF_CHANNEL_ID = "sms_gateway_sync"
+    private var smsObserver: android.database.ContentObserver? = null
+    private var lastSeenSmsId: Long = 0L
+
+    companion object {
+        private const val TAG = "SMSGatewayPlugin"
+        private const val PREFS_NAME = "sms_gateway_prefs"
+        private const val KEY_PENDING_SMS = "pending_sms_json"
+        private var instance: SmsTelephonyPlugin? = null
+
+        fun onSmsReceived(context: Context, smsData: Map<String, Any>) {
+            Log.i(TAG, "Dispatching incoming SMS to Flutter: sender=${smsData["sender"]}")
+            val plugin = instance
+            if (plugin != null && plugin.channel != null) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    plugin.channel?.invokeMethod("onIncomingSms", smsData)
+                }
+            } else {
+                savePendingSms(context, smsData)
+            }
+        }
+
+        fun savePendingSms(context: Context, smsData: Map<String, Any>) {
+            try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val existing = prefs.getString(KEY_PENDING_SMS, "[]") ?: "[]"
+                val jsonArray = org.json.JSONArray(existing)
+                val obj = org.json.JSONObject()
+                for ((k, v) in smsData) {
+                    obj.put(k, v)
+                }
+                jsonArray.put(obj)
+                prefs.edit().putString(KEY_PENDING_SMS, jsonArray.toString()).apply()
+                Log.i(TAG, "Saved incoming SMS to pending queue (size=${jsonArray.length()})")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error saving pending SMS: ${e.message}")
+            }
+        }
+
+        fun getAndClearPendingSms(context: Context): List<Map<String, Any>> {
+            val list = mutableListOf<Map<String, Any>>()
+            try {
+                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                val raw = prefs.getString(KEY_PENDING_SMS, null) ?: return list
+                val jsonArray = org.json.JSONArray(raw)
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    val map = mutableMapOf<String, Any>()
+                    val keys = obj.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        map[key] = obj.get(key)
+                    }
+                    list.add(map)
+                }
+                prefs.edit().remove(KEY_PENDING_SMS).apply()
+                Log.i(TAG, "Retrieved and cleared ${list.size} pending SMS")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error reading pending SMS: ${e.message}")
+            }
+            return list
+        }
+    }
 
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         appContext = flutterPluginBinding.applicationContext
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL_NAME)
         channel?.setMethodCallHandler(this)
         createNotificationChannel(appContext!!)
+        instance = this
+        registerContentObserver(appContext!)
         Log.i(TAG, "SmsTelephonyPlugin attached to engine (background or foreground)")
     }
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         channel?.setMethodCallHandler(null)
         channel = null
+        unregisterContentObserver()
+        if (instance == this) {
+            instance = null
+        }
         appContext = null
+    }
+
+    private fun registerContentObserver(context: Context) {
+        if (smsObserver != null) return
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        smsObserver = object : android.database.ContentObserver(handler) {
+            override fun onChange(selfChange: Boolean) {
+                super.onChange(selfChange)
+                checkLatestSms(context)
+            }
+        }
+        try {
+            context.contentResolver.registerContentObserver(
+                Telephony.Sms.CONTENT_URI,
+                true,
+                smsObserver!!
+            )
+            Log.i(TAG, "Telephony ContentObserver registered for real-time incoming SMS")
+        } catch (e: Exception) {
+            Log.w(TAG, "ContentObserver registration note: ${e.message}")
+        }
+    }
+
+    private fun unregisterContentObserver() {
+        smsObserver?.let {
+            try {
+                appContext?.contentResolver?.unregisterContentObserver(it)
+            } catch (_: Exception) {}
+            smsObserver = null
+        }
+    }
+
+    private fun checkLatestSms(context: Context) {
+        try {
+            val permCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_SMS)
+            if (permCheck != PackageManager.PERMISSION_GRANTED) return
+
+            val cursor = context.contentResolver.query(
+                Telephony.Sms.Inbox.CONTENT_URI,
+                arrayOf(
+                    Telephony.Sms._ID,
+                    Telephony.Sms.ADDRESS,
+                    Telephony.Sms.BODY,
+                    Telephony.Sms.DATE,
+                    Telephony.Sms.READ
+                ),
+                null,
+                null,
+                "${Telephony.Sms.DATE} DESC LIMIT 1"
+            )
+
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val idCol = it.getColumnIndex(Telephony.Sms._ID)
+                    val addressCol = it.getColumnIndex(Telephony.Sms.ADDRESS)
+                    val bodyCol = it.getColumnIndex(Telephony.Sms.BODY)
+                    val dateCol = it.getColumnIndex(Telephony.Sms.DATE)
+                    val readCol = it.getColumnIndex(Telephony.Sms.READ)
+
+                    val id = if (idCol >= 0) it.getLong(idCol) else 0L
+                    val date = if (dateCol >= 0) it.getLong(dateCol) else 0L
+
+                    val now = System.currentTimeMillis()
+                    if (id != lastSeenSmsId && (now - date) < 45000L) {
+                        lastSeenSmsId = id
+                        val sender = if (addressCol >= 0) it.getString(addressCol) ?: "Unknown" else "Unknown"
+                        val body = if (bodyCol >= 0) it.getString(bodyCol) ?: "" else ""
+                        val isRead = if (readCol >= 0) it.getInt(readCol) == 1 else false
+
+                        val smsMap = mapOf<String, Any>(
+                            "smsId" to id.toString(),
+                            "sender" to sender,
+                            "body" to body,
+                            "messageDate" to date,
+                            "simSlot" to "SIM 1",
+                            "isRead" to isRead
+                        )
+                        onSmsReceived(context, smsMap)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in checkLatestSms: ${e.message}")
+        }
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -85,6 +236,14 @@ class SmsTelephonyPlugin: FlutterPlugin, MethodChannel.MethodCallHandler {
                     result.success(true)
                 } catch (e: Exception) {
                     result.error("NOTIF_ERROR", e.localizedMessage, null)
+                }
+            }
+            "getPendingIncomingSms" -> {
+                try {
+                    val pending = getAndClearPendingSms(context)
+                    result.success(pending)
+                } catch (e: Exception) {
+                    result.error("PENDING_SMS_ERROR", e.localizedMessage, null)
                 }
             }
             else -> {
