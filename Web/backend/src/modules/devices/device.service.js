@@ -67,8 +67,8 @@ class DeviceService {
     if (device.status === DEVICE_STATUS.INACTIVE) {
       return DEVICE_STATUS.INACTIVE;
     }
-    // Consider offline if no heartbeat or activity for > 5 minutes
-    const OFFLINE_THRESHOLD_MS = 5 * 60 * 1000;
+    // Consider offline if no heartbeat or activity for > 3 minutes
+    const OFFLINE_THRESHOLD_MS = 3 * 60 * 1000;
     if (!device.lastSeenAt || Date.now() - new Date(device.lastSeenAt).getTime() > OFFLINE_THRESHOLD_MS) {
       return DEVICE_STATUS.OFFLINE;
     }
@@ -130,6 +130,8 @@ class DeviceService {
       throw ApiError.notFound('Device not found');
     }
 
+    const previousStatus = this._computeDeviceStatus(device);
+
     if (data.batteryLevel !== undefined) device.batteryLevel = data.batteryLevel;
     if (data.isCharging !== undefined) device.isCharging = data.isCharging;
     if (data.fcmToken) device.fcmToken = data.fcmToken;
@@ -145,6 +147,15 @@ class DeviceService {
       status: DEVICE_STATUS.ACTIVE,
       lastSeenAt: device.lastSeenAt
     });
+
+    // If device was previously OFFLINE or LOGGED_OUT and regained network, instantly notify admin panel!
+    if (previousStatus !== DEVICE_STATUS.ACTIVE) {
+      notifyAdmins('device:status_changed', {
+        deviceId: device._id,
+        deviceName: device.deviceName,
+        status: DEVICE_STATUS.ACTIVE
+      });
+    }
 
     const devObj = device.toObject();
     devObj.status = DEVICE_STATUS.ACTIVE;

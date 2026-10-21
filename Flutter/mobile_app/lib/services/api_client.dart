@@ -130,17 +130,20 @@ class ApiClient {
     return device;
   }
 
-  static Future<void> sendHeartbeat({
+  static Future<bool> sendHeartbeat({
     required String deviceId,
     int? batteryLevel,
     bool? isCharging,
   }) async {
     try {
-      await _dio.patch('/devices/$deviceId/heartbeat', data: {
+      final res = await _dio.patch('/devices/$deviceId/heartbeat', data: {
         if (batteryLevel != null) 'batteryLevel': batteryLevel,
         if (isCharging != null) 'isCharging': isCharging,
       });
-    } catch (_) {}
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<String?> getSavedDeviceId() async {

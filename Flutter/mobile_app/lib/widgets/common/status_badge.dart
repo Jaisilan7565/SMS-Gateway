@@ -42,6 +42,15 @@ class StatusBadge extends StatelessWidget {
     );
   }
 
+  factory StatusBadge.bad(String label) {
+    return StatusBadge(
+      label: label,
+      textColor: AppColors.danger,
+      backgroundColor: const Color(0xFFFDF0F1),
+      borderColor: AppColors.danger.withValues(alpha: 0.35),
+    );
+  }
+
   factory StatusBadge.off(String label) {
     return StatusBadge(
       label: label,

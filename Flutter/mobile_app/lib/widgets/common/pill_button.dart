@@ -101,21 +101,26 @@ class _PillButtonState extends State<PillButton> with SingleTickerProviderStateM
         break;
     }
 
-    return GestureDetector(
-      onTapDown: (_) => _controller.forward(),
-      onTapUp: (_) => _controller.reverse(),
-      onTapCancel: () => _controller.reverse(),
-      onTap: widget.onPressed,
-      child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) => Transform.scale(
-          scale: _scaleAnimation.value,
-          child: Container(
-            height: widget.height,
-            padding: widget.padding,
-            decoration: decoration,
-            alignment: Alignment.center,
-            child: widget.child,
+    final isEnabled = widget.onPressed != null;
+
+    return Opacity(
+      opacity: isEnabled ? 1.0 : 0.55,
+      child: GestureDetector(
+        onTapDown: isEnabled ? (_) => _controller.forward() : null,
+        onTapUp: isEnabled ? (_) => _controller.reverse() : null,
+        onTapCancel: isEnabled ? () => _controller.reverse() : null,
+        onTap: widget.onPressed,
+        child: AnimatedBuilder(
+          animation: _scaleAnimation,
+          builder: (context, child) => Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Container(
+              height: widget.height,
+              padding: widget.padding,
+              decoration: decoration,
+              alignment: Alignment.center,
+              child: widget.child,
+            ),
           ),
         ),
       ),

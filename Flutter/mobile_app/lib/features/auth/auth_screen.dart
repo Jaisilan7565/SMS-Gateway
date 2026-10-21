@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/common/pill_button.dart';
 import '../../widgets/common/app_logo.dart';
@@ -21,8 +20,6 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController(text: '');
   final _passwordController = TextEditingController(text: '');
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -31,6 +28,16 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _handleAuth() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please enter both email and password';
+      });
+      return;
+    }
+
     setState(() {
       _loading = true;
       _errorMessage = '';
@@ -38,16 +45,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       if (_isLogin) {
-        await ApiClient.loginWithEmail(
-          _emailController.text.trim(),
-          _passwordController.text,
-        );
+        await ApiClient.loginWithEmail(email, password);
       } else {
-        await ApiClient.registerWithEmail(
-          _emailController.text.trim(),
-          _passwordController.text,
-          'Mobile User',
-        );
+        await ApiClient.registerWithEmail(email, password, 'Mobile User');
       }
 
       if (mounted) {
@@ -64,82 +64,6 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    setState(() {
-      _loading = true;
-      _errorMessage = '';
-    });
-
-    try {
-      final account = await _googleSignIn.signIn();
-      if (account == null) {
-        setState(() => _loading = false);
-        return;
-      }
-
-      final auth = await account.authentication;
-      await ApiClient.loginWithGoogle(
-        idToken: auth.idToken,
-        email: account.email,
-        displayName: account.displayName,
-        photoUrl: account.photoUrl,
-        googleId: account.id,
-      );
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
-    } catch (e) {
-      final errStr = e.toString();
-      if (errStr.contains('10') || errStr.contains('12500')) {
-        setState(() {
-          _errorMessage =
-              'Google OAuth API error (SHA-1 / google-services.json mismatch).\n'
-              'Use "Instant 1-Click Quick Connect" below to connect immediately!';
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Google Sign-In: $errStr';
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _handleQuickDemoLogin() async {
-    setState(() {
-      _loading = true;
-      _errorMessage = '';
-    });
-
-    try {
-      try {
-        await ApiClient.loginWithEmail('mobile_tester@sms.com', 'Pass#123456');
-      } catch (_) {
-        await ApiClient.registerWithEmail(
-          'mobile_tester@sms.com',
-          'Pass#123456',
-          'Mobile Tester Phone',
-        );
-      }
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'One-Click Login: ${e.toString()}';
-      });
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -149,8 +73,8 @@ class _AuthScreenState extends State<AuthScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 420),
-              padding: const EdgeInsets.all(24),
+              constraints: const BoxConstraints(maxWidth: 400),
+              padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
                 color: AppColors.panel,
                 borderRadius: BorderRadius.circular(28),
@@ -171,7 +95,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   const Center(
                     child: AppLogo(size: 64),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   const Text(
                     'SMS Gateway Mobile',
                     textAlign: TextAlign.center,
@@ -191,57 +115,71 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 24),
 
                   // Mode Toggle
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isLogin = true),
-                          child: Container(
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: _isLogin
-                                  ? AppColors.brand800
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              'Sign In',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color:
-                                    _isLogin ? Colors.white : AppColors.muted,
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: AppColors.line),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() {
+                              _isLogin = true;
+                              _errorMessage = '';
+                            }),
+                            child: Container(
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: _isLogin
+                                    ? AppColors.brand800
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Sign In',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      _isLogin ? Colors.white : AppColors.muted,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _isLogin = false),
-                          child: Container(
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: !_isLogin
-                                  ? AppColors.brand800
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              'Register',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color:
-                                    !_isLogin ? Colors.white : AppColors.muted,
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() {
+                              _isLogin = false;
+                              _errorMessage = '';
+                            }),
+                            child: Container(
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: !_isLogin
+                                    ? AppColors.brand800
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Register',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      !_isLogin ? Colors.white : AppColors.muted,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
 
@@ -292,7 +230,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ],
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
 
                   // Primary Submit Button
                   PillButton(
@@ -313,50 +251,6 @@ class _AuthScreenState extends State<AuthScreen> {
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14),
                           ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Google Sign-In Button
-                  PillButton(
-                    variant: PillButtonVariant.outline,
-                    onPressed: _loading ? null : _handleGoogleSignIn,
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.g_mobiledata_rounded,
-                            size: 26, color: AppColors.ink),
-                        SizedBox(width: 4),
-                        Text(
-                          'Sign in with Google',
-                          style: TextStyle(
-                              color: AppColors.ink,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Instant One-Click Login Button (Zero-Config Test)
-                  PillButton(
-                    variant: PillButtonVariant.light,
-                    onPressed: _loading ? null : _handleQuickDemoLogin,
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.flash_on_rounded,
-                            size: 18, color: AppColors.brand900),
-                        SizedBox(width: 6),
-                        Text(
-                          'Instant 1-Click Quick Connect',
-                          style: TextStyle(
-                              color: AppColors.brand900,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13),
-                        ),
-                      ],
-                    ),
                   ),
                 ],
               ),

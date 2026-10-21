@@ -278,9 +278,19 @@ class SMSService {
     const insertedCount = bulkResult.upsertedCount || 0;
 
     // Update watermark and status
+    const wasNotActive = device.status !== DEVICE_STATUS.ACTIVE;
     device.lastSyncWatermark = highestTimestamp;
     device.lastSeenAt = new Date();
+    device.status = DEVICE_STATUS.ACTIVE;
     await device.save();
+
+    if (wasNotActive) {
+      notifyAdmins('device:status_changed', {
+        deviceId: device._id,
+        deviceName: device.deviceName,
+        status: DEVICE_STATUS.ACTIVE
+      });
+    }
 
     if (syncRequest) {
       syncRequest.status = SYNC_REQUEST_STATUS.COMPLETED;

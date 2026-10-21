@@ -21,16 +21,18 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _deviceId = '';
   String _deviceName = 'Android Device';
   String _model = '';
   int _batteryLevel = 100;
   Map<String, dynamic> _simSlots = {};
   bool _syncing = false;
+  String _currentSyncMode = '';
   double _syncProgress = 0.0;
   String _syncStage = '';
   String _fcmToken = '';
+  bool _isOnline = true;
   String _statusText = 'Ready & listening for silent FCM requests';
   final List<String> _activityLogs = [];
   Timer? _heartbeatTimer;
@@ -38,26 +40,71 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeDevice();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _heartbeatTimer?.cancel();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Whenever app is resumed from background or screen unlocked, immediately ping gateway
+      _sendHeartbeat();
+    }
+  }
+
   void _startHeartbeat() {
     _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (_) async {
-      if (_deviceId.isNotEmpty) {
-        try {
-          final battery = Battery();
-          final lvl = await battery.batteryLevel;
-          await ApiClient.sendHeartbeat(deviceId: _deviceId, batteryLevel: lvl);
-        } catch (_) {}
-      }
+    // Heartbeat loop every 30 seconds ensures prompt offline-to-online transition
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      await _sendHeartbeat();
     });
+  }
+
+  Future<void> _sendHeartbeat() async {
+    if (_deviceId.isEmpty) return;
+    try {
+      final battery = Battery();
+      final lvl = await battery.batteryLevel;
+      final success = await ApiClient.sendHeartbeat(deviceId: _deviceId, batteryLevel: lvl);
+
+      if (success) {
+        if (!_isOnline) {
+          if (mounted) {
+            setState(() {
+              _isOnline = true;
+              _statusText = 'Connected to Gateway • Ready for silent sync';
+            });
+            _addLog('Network restored • Gateway Active');
+          }
+        }
+        if (mounted && _batteryLevel != lvl) {
+          setState(() => _batteryLevel = lvl);
+        }
+      } else {
+        if (_isOnline && mounted) {
+          setState(() {
+            _isOnline = false;
+            _statusText = 'Offline (Waiting for network connection...)';
+          });
+          _addLog('Network unavailable • Reconnecting...');
+        }
+      }
+    } catch (_) {
+      if (_isOnline && mounted) {
+        setState(() {
+          _isOnline = false;
+          _statusText = 'Offline (Waiting for network connection...)';
+        });
+        _addLog('Network unavailable • Reconnecting...');
+      }
+    }
   }
 
   Future<void> _initializeDevice() async {
@@ -110,12 +157,18 @@ class _HomeScreenState extends State<HomeScreen> {
         _batteryLevel = batteryLvl;
         _simSlots = simInfo;
         _fcmToken = fcmToken;
+        _isOnline = true;
       });
 
       _addLog('Device registered & paired with Gateway');
       _startHeartbeat();
     } catch (e) {
+      setState(() {
+        _isOnline = false;
+        _statusText = 'Connection pending (Will retry automatically)...';
+      });
       _addLog('Connection note: ${e.toString()}');
+      _startHeartbeat();
     }
 
     // Setup foreground FCM listener with granular progress reporting
@@ -143,9 +196,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _manualSync(String mode) async {
     setState(() {
       _syncing = true;
+      _currentSyncMode = mode;
       _syncProgress = 0.1;
-      _syncStage = 'Reading SMS from phone inbox ($mode)...';
-      _statusText = 'Querying SMS messages from device ($mode)...';
+      _syncStage = mode == 'TODAY'
+          ? "Reading today's SMS messages..."
+          : 'Reading all inbox SMS messages...';
+      _statusText = mode == 'TODAY'
+          ? "Querying today's messages from device..."
+          : 'Querying all inbox messages...';
     });
 
     try {
@@ -157,15 +215,20 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       // 1. Query native SMS ContentProvider
-      final rawSms = await SMSService.queryInbox(limit: 200, dateFrom: dateFrom);
+      final rawSms = await SMSService.queryInbox(
+        limit: mode == 'TODAY' ? 500 : 1000,
+        dateFrom: dateFrom,
+      );
 
       if (rawSms.isEmpty) {
         setState(() {
           _syncProgress = 1.0;
-          _syncStage = 'No unsynced SMS messages found.';
+          _syncStage = mode == 'TODAY'
+              ? "No SMS messages found received today."
+              : 'No SMS messages found in inbox.';
           _statusText = 'No messages matched query criteria.';
         });
-        _addLog('Manual Push: 0 messages found');
+        _addLog("Sync ${mode == 'TODAY' ? 'Today' : 'All'}: 0 messages found");
         return;
       }
 
@@ -220,8 +283,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _syncProgress = 1.0;
         _syncStage = 'Completed! $count new messages stored.';
         _statusText = 'Sync complete! $count new messages stored.';
+        _isOnline = true;
       });
-      _addLog('Manual Push: Synced ${rawSms.length} messages ($count new)');
+      _addLog("Sync ${mode == 'TODAY' ? 'Today' : 'All'}: Synced ${rawSms.length} messages ($count new)");
     } catch (e) {
       setState(() {
         _syncProgress = 0.0;
@@ -230,64 +294,14 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       _addLog('Sync error: ${e.toString()}');
     } finally {
-      // Hold 100% briefly so user sees the success state
       await Future.delayed(const Duration(milliseconds: 1200));
       if (mounted) {
-        setState(() => _syncing = false);
+        setState(() {
+          _syncing = false;
+          _currentSyncMode = '';
+        });
       }
     }
-  }
-
-  void _showSyncPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.panel,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Select Push Sync Mode',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.ink),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Send SMS directly to the server without waiting for an admin pull request.',
-              style: TextStyle(fontSize: 13, color: AppColors.muted),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.bolt_rounded, color: AppColors.brand700),
-              title: const Text('Sync All Inbox SMS', style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Queries recent inbox messages and encrypts batch'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              tileColor: AppColors.card,
-              onTap: () {
-                Navigator.pop(ctx);
-                _manualSync('ALL');
-              },
-            ),
-            const SizedBox(height: 10),
-            ListTile(
-              leading: const Icon(Icons.today_rounded, color: AppColors.info),
-              title: const Text("Sync Today's SMS", style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Only messages received today (00:00 to now)'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              tileColor: AppColors.card,
-              onTap: () {
-                Navigator.pop(ctx);
-                _manualSync('TODAY');
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -342,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Hero Topographic Card
+              // Hero Status Card
               TopographicCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,7 +367,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       spacing: 8,
                       runSpacing: 6,
                       children: [
-                        StatusBadge.good('GATEWAY ONLINE'),
+                        _isOnline
+                            ? StatusBadge.good('GATEWAY ONLINE')
+                            : StatusBadge.bad('OFFLINE / RECONNECTING'),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -371,9 +387,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     const SizedBox(height: 18),
-                    const Text(
-                      'Ready for Silent Pull',
-                      style: TextStyle(
+                    Text(
+                      _isOnline ? 'Gateway Active' : 'Waiting for Network...',
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -429,29 +445,93 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ],
+                  ],
+                ),
+              ),
 
-                    const SizedBox(height: 22),
+              const SizedBox(height: 16),
 
-                    // Push SMS to Server Button (User Manual Push!)
+              // CLEAN 2 BUTTONS: Sync Today's SMS & Sync All Inbox Messages
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.panel,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.line),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x06000000),
+                      blurRadius: 16,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Manual Push Actions',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Push messages directly to web console without waiting for admin pull',
+                      style: TextStyle(fontSize: 12, color: AppColors.muted),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Button 1: Sync Today's SMS
                     PillButton(
-                      variant: PillButtonVariant.light,
-                      onPressed: _syncing ? null : _showSyncPicker,
+                      onPressed: _syncing ? null : () => _manualSync('TODAY'),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (_syncing)
+                          if (_syncing && _currentSyncMode == 'TODAY')
                             const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brand950),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                             )
                           else
-                            const Icon(Icons.upload_rounded, color: AppColors.brand950, size: 20),
+                            const Icon(Icons.today_rounded, size: 20, color: Colors.white),
                           const SizedBox(width: 8),
-                          Text(
-                            _syncing ? 'Encrypting & Sending...' : 'Send SMS to Server',
-                            style: const TextStyle(
-                              color: AppColors.brand950,
+                          const Text(
+                            "Sync Today's SMS",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Button 2: Sync All Inbox Messages
+                    PillButton(
+                      variant: PillButtonVariant.outline,
+                      onPressed: _syncing ? null : () => _manualSync('ALL'),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_syncing && _currentSyncMode == 'ALL')
+                            const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink),
+                            )
+                          else
+                            const Icon(Icons.all_inbox_rounded, size: 20, color: AppColors.ink),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Sync All Inbox Messages',
+                            style: TextStyle(
+                              color: AppColors.ink,
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
                             ),
