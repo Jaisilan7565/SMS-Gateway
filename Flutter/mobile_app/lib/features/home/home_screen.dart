@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -32,11 +33,31 @@ class _HomeScreenState extends State<HomeScreen> {
   String _fcmToken = '';
   String _statusText = 'Ready & listening for silent FCM requests';
   final List<String> _activityLogs = [];
+  Timer? _heartbeatTimer;
 
   @override
   void initState() {
     super.initState();
     _initializeDevice();
+  }
+
+  @override
+  void dispose() {
+    _heartbeatTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 2), (_) async {
+      if (_deviceId.isNotEmpty) {
+        try {
+          final battery = Battery();
+          final lvl = await battery.batteryLevel;
+          await ApiClient.sendHeartbeat(deviceId: _deviceId, batteryLevel: lvl);
+        } catch (_) {}
+      }
+    });
   }
 
   Future<void> _initializeDevice() async {
@@ -92,6 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       _addLog('Device registered & paired with Gateway');
+      _startHeartbeat();
     } catch (e) {
       _addLog('Connection note: ${e.toString()}');
     }
@@ -304,6 +326,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.logout_rounded, color: AppColors.muted),
             tooltip: 'Sign Out',
             onPressed: () async {
+              _heartbeatTimer?.cancel();
               final navigator = Navigator.of(context);
               await ApiClient.logout();
               navigator.pushReplacement(

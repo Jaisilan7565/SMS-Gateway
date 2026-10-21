@@ -86,13 +86,15 @@ export const DeltaChip = ({ value, dark = false }) => (
 
 /** Outlined status badge pills */
 const STATUS_BADGE = {
-  good: 'border-brand-600/40 text-brand-700 bg-brand-50',
-  warn: 'border-[#D9922B]/40 text-[#B26B00] bg-[#FEF7EC]',
-  bad: 'border-[#E0566A]/40 text-[#C0283C] bg-[#FDF0F1]',
-  info: 'border-[#6B83E6]/40 text-[#3B5BDB] bg-[#F1F4FD]',
+  good: 'border-brand-600/40 text-brand-700 bg-brand-50 font-medium',
+  warn: 'border-[#D9922B]/40 text-[#B26B00] bg-[#FEF7EC] font-medium',
+  bad: 'border-[#E0566A]/40 text-[#C0283C] bg-[#FDF0F1] font-medium',
+  info: 'border-[#6B83E6]/40 text-[#3B5BDB] bg-[#F1F4FD] font-medium',
   sim1: 'border-blue-500/30 text-blue-700 bg-blue-50 font-medium',
   sim2: 'border-purple-500/30 text-purple-700 bg-purple-50 font-medium',
-  off: 'border-line-strong text-muted bg-panel'
+  off: 'border-line-strong text-muted bg-panel',
+  offline: 'border-line-strong text-muted bg-panel/80',
+  logged_out: 'border-amber-500/40 text-amber-800 bg-amber-50 font-medium'
 };
 
 export const StatusBadge = ({ tone = 'good', children, className = '' }) => (
@@ -102,3 +104,60 @@ export const StatusBadge = ({ tone = 'good', children, className = '' }) => (
     {children}
   </span>
 );
+
+/** Shimmer Table Row Skeleton */
+export const TableSkeleton = ({ cols = 5, rows = 5 }) => (
+  <>
+    {Array.from({ length: rows }).map((_, rIdx) => (
+      <tr key={rIdx} className="animate-pulse border-b border-line">
+        {Array.from({ length: cols }).map((_, cIdx) => (
+          <td key={cIdx} className="py-4 px-4">
+            <div
+              className="h-3.5 rounded-full bg-black/6 dark:bg-white/10"
+              style={{
+                width: `${40 + ((rIdx * 17 + cIdx * 29) % 50)}%`
+              }}
+            />
+          </td>
+        ))}
+      </tr>
+    ))}
+  </>
+);
+
+/** Shimmer Card Box Skeleton */
+export const CardSkeleton = ({ count = 3, className = '' }) => (
+  <div className={`space-y-3 ${className}`}>
+    {Array.from({ length: count }).map((_, idx) => (
+      <div
+        key={idx}
+        className="p-4 rounded-2xl bg-panel border border-line animate-pulse space-y-2.5"
+      >
+        <div className="flex items-center justify-between">
+          <div className="h-4 w-32 rounded bg-black/7 dark:bg-white/10" />
+          <div className="h-4 w-16 rounded-full bg-black/5 dark:bg-white/10" />
+        </div>
+        <div className="h-3.5 w-4/5 rounded bg-black/5 dark:bg-white/8" />
+        <div className="h-3 w-1/2 rounded bg-black/4 dark:bg-white/6" />
+      </div>
+    ))}
+  </div>
+);
+
+/** Modern Loading Spinner */
+export const LoadingSpinner = ({ size = 'md', label = 'Loading...', className = '' }) => {
+  const sizeMap = {
+    sm: 'w-4 h-4',
+    md: 'w-6 h-6',
+    lg: 'w-8 h-8'
+  };
+
+  return (
+    <div className={`flex flex-col items-center justify-center gap-3 py-10 ${className}`}>
+      <div
+        className={`${sizeMap[size] || sizeMap.md} rounded-full border-2 border-brand-200 border-t-brand-700 animate-spin`}
+      />
+      {label && <span className="text-[13px] text-muted font-medium">{label}</span>}
+    </div>
+  );
+};

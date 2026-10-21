@@ -24,7 +24,7 @@ export const PullModal = () => {
   const [limit, setLimit] = useState(100);
 
   // Fetch list of connected devices
-  const { data: devicesData } = useQuery({
+  const { data: devicesData, isLoading: loadingDevices } = useQuery({
     queryKey: ['devices'],
     queryFn: () => api.get('/devices?limit=100'),
     enabled: isOpen
@@ -41,14 +41,24 @@ export const PullModal = () => {
     }
   }, [selectedDevice, devices, deviceId]);
 
-  const deviceOptions = devices.length === 0
+  const selectedDev = devices.find((d) => d._id === deviceId);
+  const isSelectedDevLoggedOut = selectedDev?.status === 'LOGGED_OUT';
+
+  const deviceOptions = loadingDevices
+    ? [{ value: '', label: 'Loading devices...', icon: Smartphone }]
+    : devices.length === 0
     ? [{ value: '', label: 'No enrolled devices found', icon: Smartphone }]
-    : devices.map((d) => ({
-        value: d._id,
-        label: `${d.deviceName} (${d.model || 'Android'})`,
-        subtitle: d.userId?.email || d.androidId,
-        icon: Smartphone
-      }));
+    : devices.map((d) => {
+        const isLoggedOut = d.status === 'LOGGED_OUT';
+        const isOffline = d.status === 'OFFLINE';
+        const statusLabel = isLoggedOut ? '🔴 Logged Out' : isOffline ? '⚪ Offline' : '🟢 Online';
+        return {
+          value: d._id,
+          label: `${d.deviceName} (${d.model || 'Android'}) • ${statusLabel}`,
+          subtitle: `${d.userId?.email || d.androidId}${isLoggedOut ? ' — User not signed in' : ''}`,
+          icon: Smartphone
+        };
+      });
 
   // Pull Mutation
   const pullMutation = useMutation({
@@ -77,6 +87,10 @@ export const PullModal = () => {
     e.preventDefault();
     if (!deviceId) {
       showToast('Please select an enrolled Android device', 'error');
+      return;
+    }
+    if (isSelectedDevLoggedOut) {
+      showToast('Cannot pull SMS: This device is currently logged out.', 'error');
       return;
     }
 
@@ -148,6 +162,14 @@ export const PullModal = () => {
                 placeholder="Select Android Device..."
                 size="md"
               />
+              {isSelectedDevLoggedOut && (
+                <div className="mt-2.5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-900 text-[12px] flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <span>
+                    <strong>Device Logged Out:</strong> The user signed out from the mobile app. You cannot pull SMS until the user signs back in.
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Filter Strategy */}
@@ -260,7 +282,7 @@ export const PullModal = () => {
               </Button>
               <Button
                 type="submit"
-                disabled={pullMutation.isPending || !deviceId}
+                disabled={pullMutation.isPending || !deviceId || isSelectedDevLoggedOut}
                 className="min-w-[140px]"
               >
                 {pullMutation.isPending ? (

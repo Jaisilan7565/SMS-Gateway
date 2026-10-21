@@ -26,12 +26,12 @@ export const DashboardPage = () => {
   const dispatch = useDispatch();
   const { showToast } = useToast();
 
-  const { data: devicesData } = useQuery({
+  const { data: devicesData, isLoading: loadingDevices } = useQuery({
     queryKey: ['devices'],
     queryFn: () => api.get('/devices?limit=5')
   });
 
-  const { data: messagesData } = useQuery({
+  const { data: messagesData, isLoading: loadingMessages } = useQuery({
     queryKey: ['messages', { limit: 10 }],
     queryFn: () => api.get('/sms/messages?limit=10')
   });
@@ -123,11 +123,15 @@ export const DashboardPage = () => {
             </div>
           </div>
           <div className="text-3xl font-bold text-ink">
-            <AnimatedNumber value={totalDevices} />
+            {loadingDevices ? (
+              <div className="h-9 w-16 rounded-lg bg-black/6 dark:bg-white/10 animate-pulse my-0.5" />
+            ) : (
+              <AnimatedNumber value={totalDevices} />
+            )}
           </div>
           <p className="text-[12px] text-muted mt-1.5 flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-brand-700" />
-            {devices.filter((d) => d.status === 'ACTIVE').length} currently active
+            {loadingDevices ? '...' : `${devices.filter((d) => d.status === 'ACTIVE').length} currently active`}
           </p>
         </Card>
 
@@ -141,7 +145,11 @@ export const DashboardPage = () => {
             </div>
           </div>
           <div className="text-3xl font-bold text-ink">
-            <AnimatedNumber value={totalMessages} />
+            {loadingMessages ? (
+              <div className="h-9 w-20 rounded-lg bg-black/6 dark:bg-white/10 animate-pulse my-0.5" />
+            ) : (
+              <AnimatedNumber value={totalMessages} />
+            )}
           </div>
           <p className="text-[12px] text-muted mt-1.5 flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-brand-700" />
@@ -199,40 +207,72 @@ export const DashboardPage = () => {
             </button>
           </div>
 
-          {devices.length === 0 ? (
+          {loadingDevices ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-2xl bg-panel border border-line animate-pulse flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-black/6 dark:bg-white/10" />
+                    <div className="space-y-1.5">
+                      <div className="h-3.5 w-24 rounded bg-black/7 dark:bg-white/10" />
+                      <div className="h-3 w-16 rounded bg-black/5 dark:bg-white/8" />
+                    </div>
+                  </div>
+                  <div className="h-8 w-14 rounded-full bg-black/6 dark:bg-white/10" />
+                </div>
+              ))}
+            </div>
+          ) : devices.length === 0 ? (
             <div className="text-center py-8 text-muted text-[13px]">
               No Android devices enrolled yet. Login from the Flutter app to pair.
             </div>
           ) : (
             <div className="space-y-3">
-              {devices.map((d) => (
-                <div
-                  key={d._id}
-                  className="p-3.5 rounded-2xl bg-panel border border-line flex items-center justify-between hover:border-brand-600 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="grid place-items-center w-9 h-9 rounded-xl bg-card border border-line text-ink">
-                      <Smartphone className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-semibold text-ink leading-tight">
-                        {d.deviceName}
-                      </p>
-                      <p className="text-[11px] text-muted">
-                        {d.model || 'Android Phone'} • {d.batteryLevel}% 🔋
-                      </p>
-                    </div>
-                  </div>
+              {devices.map((d) => {
+                const isLoggedOut = d.status === 'LOGGED_OUT';
+                const statusTone = d.status === 'ACTIVE' ? 'good' : isLoggedOut ? 'logged_out' : 'offline';
+                const statusLabel = d.status === 'ACTIVE' ? 'Online' : isLoggedOut ? 'Logged Out' : 'Offline';
 
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => dispatch(openPullModal(d))}
+                return (
+                  <div
+                    key={d._id}
+                    className="p-3.5 rounded-2xl bg-panel border border-line flex items-center justify-between hover:border-brand-600 transition-colors"
                   >
-                    Pull
-                  </Button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-3">
+                      <div className="grid place-items-center w-9 h-9 rounded-xl bg-card border border-line text-ink">
+                        <Smartphone className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[13px] font-semibold text-ink leading-tight">
+                            {d.deviceName}
+                          </p>
+                          <StatusBadge tone={statusTone} className="text-[10px] py-0 px-1.5">
+                            {statusLabel}
+                          </StatusBadge>
+                        </div>
+                        <p className="text-[11px] text-muted mt-0.5">
+                          {d.model || 'Android Phone'} • {d.batteryLevel}% 🔋
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isLoggedOut}
+                      onClick={() => dispatch(openPullModal(d))}
+                      className={isLoggedOut ? 'opacity-40 cursor-not-allowed' : ''}
+                      title={isLoggedOut ? 'Device is logged out' : 'Pull SMS'}
+                    >
+                      {isLoggedOut ? 'Logged Out' : 'Pull'}
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </Card>
@@ -255,7 +295,23 @@ export const DashboardPage = () => {
             </button>
           </div>
 
-          {messages.length === 0 ? (
+          {loadingMessages ? (
+            <div className="space-y-2.5">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-2xl bg-panel border border-line animate-pulse space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-24 rounded bg-black/7 dark:bg-white/10" />
+                    <div className="h-3.5 w-12 rounded-full bg-black/5 dark:bg-white/10" />
+                    <div className="h-3 w-16 rounded bg-black/4 dark:bg-white/8" />
+                  </div>
+                  <div className="h-4 w-4/5 rounded bg-black/5 dark:bg-white/8" />
+                </div>
+              ))}
+            </div>
+          ) : messages.length === 0 ? (
             <div className="text-center py-12 text-muted text-[13px]">
               No messages synced yet. Click "Pull SMS Now" to trigger an ingestion batch.
             </div>

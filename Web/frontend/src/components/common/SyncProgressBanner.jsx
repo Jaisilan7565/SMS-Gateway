@@ -2,13 +2,27 @@ import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, CheckCircle2, AlertCircle, X, Smartphone, ArrowRight } from 'lucide-react';
-import { clearActiveSyncJob, setActiveTab } from '../../store/slices/uiSlice';
+import { clearActiveSyncJob, setActiveSyncJob, setActiveTab } from '../../store/slices/uiSlice';
 
 export const SyncProgressBanner = () => {
   const dispatch = useDispatch();
   const activeSyncJob = useSelector((s) => s.ui.activeSyncJob);
 
   useEffect(() => {
+    if (activeSyncJob?.status === 'triggered' || activeSyncJob?.status === 'processing') {
+      // Auto-timeout after 45 seconds if device did not respond
+      const timeoutTimer = setTimeout(() => {
+        dispatch(
+          setActiveSyncJob({
+            ...activeSyncJob,
+            status: 'failed',
+            error: 'Device did not respond within 45s. Phone may be asleep, offline, or logged out.'
+          })
+        );
+      }, 45000);
+      return () => clearTimeout(timeoutTimer);
+    }
+
     if (activeSyncJob?.status === 'completed' || activeSyncJob?.status === 'failed') {
       const timer = setTimeout(() => {
         dispatch(clearActiveSyncJob());

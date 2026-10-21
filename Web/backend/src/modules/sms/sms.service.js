@@ -12,6 +12,7 @@ import {
   SYNC_REQUEST_STATUS,
   SYNC_TRIGGER_SOURCE,
   SYNC_FILTER_TYPES,
+  DEVICE_STATUS,
   AUDIT_ACTIONS
 } from '../../constants/statuses.js';
 import { ROLES } from '../../constants/roles.js';
@@ -24,6 +25,10 @@ class SMSService {
     const device = await Device.findById(deviceId);
     if (!device) {
       throw ApiError.notFound('Target device not found');
+    }
+
+    if (device.status === DEVICE_STATUS.LOGGED_OUT) {
+      throw ApiError.badRequest(`Cannot pull SMS: ${device.deviceName} is currently logged out. The mobile user must sign in first.`);
     }
 
     if (!device.fcmToken) {
@@ -98,6 +103,28 @@ class SMSService {
         filterType,
         status: syncRequest.status
       });
+
+      // Automatically fail and notify admins if phone does not respond within 45s
+      setTimeout(async () => {
+        try {
+          const currentReq = await SyncRequest.findById(syncRequest._id);
+          if (currentReq && (currentReq.status === SYNC_REQUEST_STATUS.PENDING || currentReq.status === SYNC_REQUEST_STATUS.PROCESSING)) {
+            currentReq.status = SYNC_REQUEST_STATUS.FAILED;
+            currentReq.failureReason = 'Device did not respond within 45s. The device may be offline, asleep, or disconnected.';
+            currentReq.completedAt = new Date();
+            await currentReq.save();
+
+            notifyAdmins('sync:failed', {
+              requestId: currentReq._id,
+              deviceId: device._id,
+              deviceName: device.deviceName,
+              error: currentReq.failureReason
+            });
+          }
+        } catch (e) {
+          logger.warn(`Sync timeout check error for ${syncRequest._id}: ${e.message}`);
+        }
+      }, 45000);
 
       return syncRequest;
     } catch (error) {
@@ -414,7 +441,14 @@ class SMSService {
         deviceName: dev.deviceName,
         model: dev.model,
         manufacturer: dev.manufacturer,
-        status: dev.status,
+        status:
+          dev.status === DEVICE_STATUS.LOGGED_OUT
+            ? DEVICE_STATUS.LOGGED_OUT
+            : dev.status === DEVICE_STATUS.INACTIVE
+            ? DEVICE_STATUS.INACTIVE
+            : !dev.lastSeenAt || Date.now() - new Date(dev.lastSeenAt).getTime() > 5 * 60 * 1000
+            ? DEVICE_STATUS.OFFLINE
+            : DEVICE_STATUS.ACTIVE,
         batteryLevel: dev.batteryLevel,
         lastSeenAt: dev.lastSeenAt,
         messageCount: devStats?.count || 0,

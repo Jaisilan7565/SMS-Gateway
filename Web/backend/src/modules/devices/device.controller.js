@@ -43,6 +43,20 @@ class DeviceController {
       next(err);
     }
   }
+
+  async logoutDevice(req, res, next) {
+    try {
+      const result = await deviceService.logoutDevice(
+        req.user._id,
+        req.params.id,
+        req.ip,
+        req.headers['user-agent']
+      );
+      return ApiResponse.success(res, result, 'Device logged out successfully');
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export default new DeviceController();

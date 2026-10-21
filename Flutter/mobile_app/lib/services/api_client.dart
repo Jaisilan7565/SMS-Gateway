@@ -105,8 +105,15 @@ class ApiClient {
   }
 
   static Future<void> logout() async {
+    final deviceId = await _storage.read(key: 'device_id');
+    if (deviceId != null && deviceId.isNotEmpty) {
+      try {
+        await _dio.post('/devices/$deviceId/logout');
+      } catch (_) {}
+    }
     await _storage.delete(key: 'access_token');
     await _storage.delete(key: 'device_id');
+    await _storage.delete(key: 'user_email');
   }
 
   static Future<bool> isLoggedIn() async {
@@ -114,13 +121,26 @@ class ApiClient {
     return token != null && token.isNotEmpty;
   }
 
-  // --- Device Registration ---
+  // --- Device Registration & Telemetry ---
   static Future<Map<String, dynamic>> registerDevice(
       Map<String, dynamic> deviceData) async {
     final res = await _dio.post('/devices/register', data: deviceData);
     final device = res.data['data']['device'];
     await _storage.write(key: 'device_id', value: device['_id']);
     return device;
+  }
+
+  static Future<void> sendHeartbeat({
+    required String deviceId,
+    int? batteryLevel,
+    bool? isCharging,
+  }) async {
+    try {
+      await _dio.patch('/devices/$deviceId/heartbeat', data: {
+        if (batteryLevel != null) 'batteryLevel': batteryLevel,
+        if (isCharging != null) 'isCharging': isCharging,
+      });
+    } catch (_) {}
   }
 
   static Future<String?> getSavedDeviceId() async {

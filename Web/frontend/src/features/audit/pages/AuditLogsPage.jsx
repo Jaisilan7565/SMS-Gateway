@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, Clock, User, Globe, Activity, Trash2, AlertTriangle, Database } from 'lucide-react';
 import api from '../../../services/api';
-import { Card, CardTitle, StatusBadge, Button } from '../../../components/common/ui';
+import { Card, CardTitle, StatusBadge, Button, TableSkeleton } from '../../../components/common/ui';
 import PageHeader from '../../../components/common/PageHeader';
 import { useToast } from '../../../components/common/Toast';
 import PurgeConfirmModal from '../components/PurgeConfirmModal';
@@ -68,7 +68,9 @@ export const AuditLogsPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {logs.length === 0 ? (
+              {isLoading ? (
+                <TableSkeleton cols={5} rows={8} />
+              ) : logs.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="text-center py-16 text-muted">
                     No audit records logged yet.
@@ -113,7 +115,7 @@ export const AuditLogsPage = () => {
         </div>
 
         {/* Pagination Footer */}
-        {pagination.totalPages > 1 && (
+        {!isLoading && pagination.totalPages > 1 && (
           <div className="flex items-center justify-between p-4 border-t border-line bg-panel/50 text-[12px] text-muted">
             <span>
               Page {pagination.page} of {pagination.totalPages} ({pagination.total} total logs)

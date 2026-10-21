@@ -30,7 +30,7 @@ import {
   clearFilterDevice,
   setFilterDevice
 } from '../../../store/slices/uiSlice';
-import { Card, Button, StatusBadge } from '../../../components/common/ui';
+import { Card, Button, StatusBadge, TableSkeleton } from '../../../components/common/ui';
 import PageHeader from '../../../components/common/PageHeader';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import CustomSelect from '../../../components/common/CustomSelect';
@@ -73,7 +73,7 @@ export const SMSInboxPage = () => {
   }, [reduxFilterDeviceId, reduxFilterUserId]);
 
   // Query users and devices summary for per-user segregated view
-  const { data: summaryData } = useQuery({
+  const { data: summaryData, isLoading: loadingSummary } = useQuery({
     queryKey: ['usersSummary'],
     queryFn: () => api.get('/sms/users-summary')
   });
@@ -210,56 +210,67 @@ export const SMSInboxPage = () => {
 
         {/* User Chips Row */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedUserId(null);
-              setSelectedDeviceId(null);
-              setPage(1);
-              dispatch(clearFilterDevice());
-            }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-              !selectedUserId && !selectedDeviceId
-                ? 'bg-brand-900 text-white font-semibold shadow-xs'
-                : 'bg-panel text-ink-2 hover:bg-brand-50 border border-line'
-            }`}
-          >
-            <span>All Users</span>
-          </button>
-
-          {usersSummary.map((u) => {
-            const isUserSelected = selectedUserId === u.userId;
-            return (
+          {loadingSummary ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="h-8 w-32 rounded-full bg-black/6 dark:bg-white/10 animate-pulse shrink-0"
+              />
+            ))
+          ) : (
+            <>
               <button
-                key={u.userId}
                 type="button"
                 onClick={() => {
-                  setSelectedUserId(u.userId);
+                  setSelectedUserId(null);
                   setSelectedDeviceId(null);
                   setPage(1);
+                  dispatch(clearFilterDevice());
                 }}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
-                  isUserSelected && !selectedDeviceId
-                    ? 'bg-brand-800 text-white font-semibold shadow-xs'
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                  !selectedUserId && !selectedDeviceId
+                    ? 'bg-brand-900 text-white font-semibold shadow-xs'
                     : 'bg-panel text-ink-2 hover:bg-brand-50 border border-line'
                 }`}
               >
-                <div className="w-4 h-4 rounded-full bg-brand-100 text-brand-900 text-[10px] grid place-items-center font-bold">
-                  {u.email?.charAt(0).toUpperCase()}
-                </div>
-                <span>{u.email}</span>
-                <span
-                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                    isUserSelected
-                      ? 'bg-white/20 text-white'
-                      : 'bg-black/5 text-muted'
-                  }`}
-                >
-                  {u.totalMessages}
-                </span>
+                <span>All Users</span>
               </button>
-            );
-          })}
+
+              {usersSummary.map((u) => {
+                const isUserSelected = selectedUserId === u.userId;
+                return (
+                  <button
+                    key={u.userId}
+                    type="button"
+                    onClick={() => {
+                      setSelectedUserId(u.userId);
+                      setSelectedDeviceId(null);
+                      setPage(1);
+                    }}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[12px] font-medium whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                      isUserSelected && !selectedDeviceId
+                        ? 'bg-brand-800 text-white font-semibold shadow-xs'
+                        : 'bg-panel text-ink-2 hover:bg-brand-50 border border-line'
+                    }`}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-brand-100 text-brand-900 text-[10px] grid place-items-center font-bold">
+                      {u.email?.charAt(0).toUpperCase()}
+                    </div>
+                    <span>{u.email}</span>
+                    <span
+                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        isUserSelected
+                          ? 'bg-white/20 text-white'
+                          : 'bg-black/5 text-muted'
+                      }`}
+                    >
+                      {u.totalMessages}
+                    </span>
+                  </button>
+                );
+              })}
+            </>
+          )}
         </div>
 
         {/* If a User is Selected, Show Device Sub-Chips */}
@@ -432,7 +443,9 @@ export const SMSInboxPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {messages.length === 0 ? (
+              {isLoading ? (
+                <TableSkeleton cols={7} rows={8} />
+              ) : messages.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="text-center py-16 text-muted">
                     No SMS messages found for this user/device selection.
@@ -529,7 +542,20 @@ export const SMSInboxPage = () => {
 
         {/* MOBILE RESPONSIVE CARD STREAM (below md) */}
         <div className="md:hidden divide-y divide-line">
-          {messages.length === 0 ? (
+          {isLoading ? (
+            <div className="p-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <div key={idx} className="p-4 rounded-2xl bg-panel border border-line animate-pulse space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <div className="h-4 w-28 rounded bg-black/7 dark:bg-white/10" />
+                    <div className="h-3 w-16 rounded bg-black/5 dark:bg-white/10" />
+                  </div>
+                  <div className="h-3 w-40 rounded bg-black/5 dark:bg-white/8" />
+                  <div className="h-12 w-full rounded-xl bg-black/5 dark:bg-white/8" />
+                </div>
+              ))}
+            </div>
+          ) : messages.length === 0 ? (
             <div className="text-center py-12 text-muted px-4">
               <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-30" />
               <p className="text-[14px] font-medium text-ink">No Messages Found</p>
@@ -635,9 +661,15 @@ export const SMSInboxPage = () => {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 sm:p-4 border-t border-line bg-panel/50 text-[12px] text-muted">
           <div>
             <span>
-              Showing <strong className="text-ink font-semibold">{startRecord}</strong> to{' '}
-              <strong className="text-ink font-semibold">{endRecord}</strong> of{' '}
-              <strong className="text-ink font-semibold">{pagination.total}</strong> messages
+              {isLoading ? (
+                <span className="text-muted">Loading messages...</span>
+              ) : (
+                <>
+                  Showing <strong className="text-ink font-semibold">{startRecord}</strong> to{' '}
+                  <strong className="text-ink font-semibold">{endRecord}</strong> of{' '}
+                  <strong className="text-ink font-semibold">{pagination.total}</strong> messages
+                </>
+              )}
             </span>
           </div>
 

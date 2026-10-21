@@ -19,6 +19,18 @@ import { Card, CardTitle, Button, StatusBadge } from '../../../components/common
 import PageHeader from '../../../components/common/PageHeader';
 import { rise } from '../../../utils/motion';
 
+const getDeviceStatusTone = (status) => {
+  if (status === 'ACTIVE') return 'good';
+  if (status === 'LOGGED_OUT') return 'logged_out';
+  return 'offline';
+};
+
+const getDeviceStatusLabel = (status) => {
+  if (status === 'ACTIVE') return 'Online';
+  if (status === 'LOGGED_OUT') return 'Logged Out';
+  return 'Offline';
+};
+
 export const DevicesPage = () => {
   const dispatch = useDispatch();
   const [search, setSearch] = useState('');
@@ -54,7 +66,33 @@ export const DevicesPage = () => {
         }
       />
 
-      {devices.length === 0 && !isLoading ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <Card key={idx} className="p-5 animate-pulse space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-black/6 dark:bg-white/10" />
+                  <div className="space-y-1.5">
+                    <div className="h-4 w-32 rounded bg-black/7 dark:bg-white/10" />
+                    <div className="h-3 w-24 rounded bg-black/5 dark:bg-white/8" />
+                  </div>
+                </div>
+                <div className="h-5 w-16 rounded-full bg-black/6 dark:bg-white/10" />
+              </div>
+              <div className="space-y-2.5 py-3 border-y border-line">
+                <div className="h-3.5 w-full rounded bg-black/5 dark:bg-white/8" />
+                <div className="h-3.5 w-4/5 rounded bg-black/5 dark:bg-white/8" />
+                <div className="h-3.5 w-3/5 rounded bg-black/5 dark:bg-white/8" />
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <div className="h-9 rounded-full bg-black/6 dark:bg-white/10" />
+                <div className="h-9 rounded-full bg-black/6 dark:bg-white/10" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      ) : devices.length === 0 ? (
         <Card className="text-center py-16">
           <Smartphone className="w-12 h-12 text-muted mx-auto mb-3 opacity-40" />
           <h3 className="text-[17px] font-semibold text-ink">No Android Devices Found</h3>
@@ -64,103 +102,110 @@ export const DevicesPage = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {devices.map((device) => (
-            <Card key={device._id} className="flex flex-col justify-between h-full">
-              <div>
-                {/* Header: Name & Status */}
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="grid place-items-center w-10 h-10 rounded-2xl bg-brand-100 text-brand-800 shrink-0">
-                      <Smartphone className="w-5 h-5" />
+          {devices.map((device) => {
+            const isLoggedOut = device.status === 'LOGGED_OUT';
+            return (
+              <Card key={device._id} className="flex flex-col justify-between h-full">
+                <div>
+                  {/* Header: Name & Status */}
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="grid place-items-center w-10 h-10 rounded-2xl bg-brand-100 text-brand-800 shrink-0">
+                        <Smartphone className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-[15px] font-bold text-ink leading-tight">
+                          {device.deviceName}
+                        </h4>
+                        <p className="text-[12px] text-muted mt-0.5">
+                          {device.model || 'Android Phone'} ({device.manufacturer || 'OEM'})
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-[15px] font-bold text-ink leading-tight">
-                        {device.deviceName}
-                      </h4>
-                      <p className="text-[12px] text-muted mt-0.5">
-                        {device.model || 'Android Phone'} ({device.manufacturer || 'OEM'})
-                      </p>
+
+                    <StatusBadge tone={getDeviceStatusTone(device.status)}>
+                      {getDeviceStatusLabel(device.status)}
+                    </StatusBadge>
+                  </div>
+
+                  {/* Telephony & Hardware Specs */}
+                  <div className="space-y-2 py-3 border-y border-line text-[12px]">
+                    <div className="flex items-center justify-between text-ink-2">
+                      <span className="text-muted flex items-center gap-1.5">
+                        <Radio className="w-3.5 h-3.5 text-blue-600" />
+                        SIM 1:
+                      </span>
+                      <span className="font-medium">{device.simSlots?.sim1?.carrier || 'Not detected'}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-ink-2">
+                      <span className="text-muted flex items-center gap-1.5">
+                        <Radio className="w-3.5 h-3.5 text-purple-600" />
+                        SIM 2:
+                      </span>
+                      <span className="font-medium">{device.simSlots?.sim2?.carrier || 'Not detected'}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-ink-2">
+                      <span className="text-muted flex items-center gap-1.5">
+                        <Battery className="w-3.5 h-3.5 text-brand-700" />
+                        Battery Level:
+                      </span>
+                      <span className="font-medium font-mono">{device.batteryLevel}% {device.isCharging && '⚡'}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-ink-2">
+                      <span className="text-muted flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-subtle" />
+                        Last Heartbeat:
+                      </span>
+                      <span className="font-medium text-subtle">
+                        {device.lastSeenAt
+                          ? new Date(device.lastSeenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : 'Never'}
+                      </span>
                     </div>
                   </div>
 
-                  <StatusBadge tone={device.status === 'ACTIVE' ? 'good' : 'off'}>
-                    {device.status}
-                  </StatusBadge>
-                </div>
-
-                {/* Telephony & Hardware Specs */}
-                <div className="space-y-2 py-3 border-y border-line text-[12px]">
-                  <div className="flex items-center justify-between text-ink-2">
-                    <span className="text-muted flex items-center gap-1.5">
-                      <Radio className="w-3.5 h-3.5 text-blue-600" />
-                      SIM 1:
-                    </span>
-                    <span className="font-medium">{device.simSlots?.sim1?.carrier || 'Not detected'}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-ink-2">
-                    <span className="text-muted flex items-center gap-1.5">
-                      <Radio className="w-3.5 h-3.5 text-purple-600" />
-                      SIM 2:
-                    </span>
-                    <span className="font-medium">{device.simSlots?.sim2?.carrier || 'Not detected'}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-ink-2">
-                    <span className="text-muted flex items-center gap-1.5">
-                      <Battery className="w-3.5 h-3.5 text-brand-700" />
-                      Battery Level:
-                    </span>
-                    <span className="font-medium font-mono">{device.batteryLevel}% {device.isCharging && '⚡'}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-ink-2">
-                    <span className="text-muted flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-subtle" />
-                      Last Heartbeat:
-                    </span>
-                    <span className="font-medium text-subtle">
-                      {new Date(device.lastSeenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                  {/* User Binding */}
+                  <div className="pt-3 text-[11px] text-muted">
+                    <span>Linked User: </span>
+                    <span className="font-semibold text-ink">{device.userId?.email || 'N/A'}</span>
                   </div>
                 </div>
 
-                {/* User Binding */}
-                <div className="pt-3 text-[11px] text-muted">
-                  <span>Linked User: </span>
-                  <span className="font-semibold text-ink">{device.userId?.email || 'N/A'}</span>
+                {/* Action Buttons */}
+                <div className="mt-5 pt-3 grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    onClick={() =>
+                      dispatch(
+                        setFilterDevice({
+                          deviceId: device._id,
+                          userId: device.userId?._id
+                        })
+                      )
+                    }
+                    className="w-full flex items-center justify-center gap-1.5"
+                  >
+                    <MessageSquare className="w-4 h-4 text-brand-700" />
+                    <span>View SMS</span>
+                  </Button>
+                  <Button
+                    size="md"
+                    onClick={() => dispatch(openPullModal(device))}
+                    disabled={isLoggedOut}
+                    className={`w-full flex items-center justify-center gap-1.5 ${isLoggedOut ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={isLoggedOut ? 'Device is logged out' : 'Pull SMS'}
+                  >
+                    <Zap className="w-4 h-4 fill-current" />
+                    <span>{isLoggedOut ? 'Logged Out' : 'Pull SMS'}</span>
+                  </Button>
                 </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="mt-5 pt-3 grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  size="md"
-                  onClick={() =>
-                    dispatch(
-                      setFilterDevice({
-                        deviceId: device._id,
-                        userId: device.userId?._id
-                      })
-                    )
-                  }
-                  className="w-full flex items-center justify-center gap-1.5"
-                >
-                  <MessageSquare className="w-4 h-4 text-brand-700" />
-                  <span>View SMS</span>
-                </Button>
-                <Button
-                  size="md"
-                  onClick={() => dispatch(openPullModal(device))}
-                  className="w-full flex items-center justify-center gap-1.5"
-                >
-                  <Zap className="w-4 h-4 fill-current" />
-                  <span>Pull SMS</span>
-                </Button>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

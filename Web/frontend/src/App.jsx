@@ -115,6 +115,27 @@ export const App = () => {
       queryClient.invalidateQueries(['usersSummary']);
     });
 
+    // Device status changed (e.g. logged out)
+    socket.on('device:status_changed', (data) => {
+      queryClient.invalidateQueries(['devices']);
+      queryClient.invalidateQueries(['usersSummary']);
+      showToast(`📱 ${data.deviceName}: ${data.status === 'LOGGED_OUT' ? 'Logged Out' : data.status}`, 'info');
+    });
+
+    // Sync pull failed on mobile or timed out
+    socket.on('sync:failed', (data) => {
+      queryClient.invalidateQueries(['syncRequests']);
+      dispatch(
+        setActiveSyncJob({
+          requestId: data.requestId,
+          deviceName: data.deviceName || 'Android Device',
+          status: 'failed',
+          error: data.error || 'Device could not complete pull'
+        })
+      );
+      showToast(`❌ Sync failed for ${data.deviceName}: ${data.error || 'Device unresponsive'}`, 'error');
+    });
+
     // System database purged
     socket.on('system:purged', () => {
       queryClient.invalidateQueries(['messages']);
