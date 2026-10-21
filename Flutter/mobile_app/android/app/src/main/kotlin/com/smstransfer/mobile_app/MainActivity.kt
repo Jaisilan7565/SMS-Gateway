@@ -89,8 +89,11 @@ class MainActivity: FlutterActivity() {
     private fun showLocalNotification(title: String, body: String) {
         createNotificationChannel()
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        val iconRes = resources.getIdentifier("ic_notification", "drawable", packageName).takeIf { it != 0 }
+            ?: android.R.drawable.stat_notify_sync
+
         val builder = NotificationCompat.Builder(this, NOTIF_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setSmallIcon(iconRes)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

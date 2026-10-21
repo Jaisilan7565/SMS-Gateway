@@ -18,8 +18,8 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _loading = false;
   String _errorMessage = '';
 
-  final _emailController = TextEditingController(text: 'user@example.com');
-  final _passwordController = TextEditingController(text: 'Password#2026');
+  final _emailController = TextEditingController(text: '');
+  final _passwordController = TextEditingController(text: '');
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
 
@@ -95,7 +95,8 @@ class _AuthScreenState extends State<AuthScreen> {
       final errStr = e.toString();
       if (errStr.contains('10') || errStr.contains('12500')) {
         setState(() {
-          _errorMessage = 'Google OAuth API error (SHA-1 / google-services.json mismatch).\n'
+          _errorMessage =
+              'Google OAuth API error (SHA-1 / google-services.json mismatch).\n'
               'Use "Instant 1-Click Quick Connect" below to connect immediately!';
         });
       } else {
@@ -198,7 +199,9 @@ class _AuthScreenState extends State<AuthScreen> {
                           child: Container(
                             height: 38,
                             decoration: BoxDecoration(
-                              color: _isLogin ? AppColors.brand800 : Colors.transparent,
+                              color: _isLogin
+                                  ? AppColors.brand800
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             alignment: Alignment.center,
@@ -207,7 +210,8 @@ class _AuthScreenState extends State<AuthScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: _isLogin ? Colors.white : AppColors.muted,
+                                color:
+                                    _isLogin ? Colors.white : AppColors.muted,
                               ),
                             ),
                           ),
@@ -219,7 +223,9 @@ class _AuthScreenState extends State<AuthScreen> {
                           child: Container(
                             height: 38,
                             decoration: BoxDecoration(
-                              color: !_isLogin ? AppColors.brand800 : Colors.transparent,
+                              color: !_isLogin
+                                  ? AppColors.brand800
+                                  : Colors.transparent,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             alignment: Alignment.center,
@@ -228,7 +234,8 @@ class _AuthScreenState extends State<AuthScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: !_isLogin ? Colors.white : AppColors.muted,
+                                color:
+                                    !_isLogin ? Colors.white : AppColors.muted,
                               ),
                             ),
                           ),
@@ -249,7 +256,8 @@ class _AuthScreenState extends State<AuthScreen> {
                       fillColor: AppColors.card,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: AppColors.lineStrong),
+                        borderSide:
+                            const BorderSide(color: AppColors.lineStrong),
                       ),
                     ),
                   ),
@@ -261,12 +269,14 @@ class _AuthScreenState extends State<AuthScreen> {
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
+                      prefixIcon:
+                          const Icon(Icons.lock_outline_rounded, size: 20),
                       filled: true,
                       fillColor: AppColors.card,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: AppColors.lineStrong),
+                        borderSide:
+                            const BorderSide(color: AppColors.lineStrong),
                       ),
                     ),
                   ),
@@ -275,7 +285,10 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 12),
                     Text(
                       _errorMessage,
-                      style: const TextStyle(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w500),
                     ),
                   ],
 
@@ -288,11 +301,17 @@ class _AuthScreenState extends State<AuthScreen> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : Text(
-                            _isLogin ? 'Sign In & Connect Device' : 'Create Account',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                            _isLogin
+                                ? 'Sign In & Connect Device'
+                                : 'Create Account',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14),
                           ),
                   ),
                   const SizedBox(height: 12),
@@ -304,11 +323,15 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.g_mobiledata_rounded, size: 26, color: AppColors.ink),
+                        Icon(Icons.g_mobiledata_rounded,
+                            size: 26, color: AppColors.ink),
                         SizedBox(width: 4),
                         Text(
                           'Sign in with Google',
-                          style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600, fontSize: 14),
+                          style: TextStyle(
+                              color: AppColors.ink,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14),
                         ),
                       ],
                     ),
@@ -322,11 +345,15 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.flash_on_rounded, size: 18, color: AppColors.brand900),
+                        Icon(Icons.flash_on_rounded,
+                            size: 18, color: AppColors.brand900),
                         SizedBox(width: 6),
                         Text(
                           'Instant 1-Click Quick Connect',
-                          style: TextStyle(color: AppColors.brand900, fontWeight: FontWeight.w700, fontSize: 13),
+                          style: TextStyle(
+                              color: AppColors.brand900,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13),
                         ),
                       ],
                     ),
