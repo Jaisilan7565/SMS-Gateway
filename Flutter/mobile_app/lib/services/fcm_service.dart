@@ -51,6 +51,7 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
           final encrypted = await CryptoService.encrypt(bodyText);
 
           encryptedBatch.add({
+            'smsId': msg['smsId'],
             'sender': msg['sender'],
             'encryptedBody': encrypted['ciphertext'],
             'iv': encrypted['iv'],
@@ -167,6 +168,7 @@ class FCMService {
             final encrypted = await CryptoService.encrypt(bodyText);
 
             encryptedBatch.add({
+              'smsId': msg['smsId'],
               'sender': msg['sender'],
               'encryptedBody': encrypted['ciphertext'],
               'iv': encrypted['iv'],

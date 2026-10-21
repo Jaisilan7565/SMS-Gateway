@@ -89,8 +89,9 @@ class ApiClient {
     final payload = <String, dynamic>{};
     if (idToken != null && idToken.isNotEmpty) payload['idToken'] = idToken;
     if (email != null && email.isNotEmpty) payload['email'] = email;
-    if (displayName != null && displayName.isNotEmpty)
+    if (displayName != null && displayName.isNotEmpty) {
       payload['displayName'] = displayName;
+    }
     if (photoUrl != null && photoUrl.isNotEmpty) payload['photoUrl'] = photoUrl;
     if (googleId != null && googleId.isNotEmpty) payload['googleId'] = googleId;
 

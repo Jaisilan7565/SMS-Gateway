@@ -30,12 +30,12 @@ class AppLogo extends StatelessWidget {
             ),
             borderRadius: BorderRadius.circular(size * 0.32),
             border: Border.all(
-              color: const Color(0xFF5DBD8B).withOpacity(0.4),
+              color: const Color(0xFF5DBD8B).withValues(alpha: 0.4),
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF145534).withOpacity(0.35),
+                color: const Color(0xFF145534).withValues(alpha: 0.35),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -52,7 +52,7 @@ class AppLogo extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFF5DBD8B).withOpacity(0.25),
+                      color: const Color(0xFF5DBD8B).withValues(alpha: 0.25),
                       width: 1,
                     ),
                   ),

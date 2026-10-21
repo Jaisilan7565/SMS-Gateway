@@ -1,0 +1,19 @@
+name: sms_telephony
+description: SMS Telephony Plugin for SMS Gateway
+version: 0.0.1
+publish_to: 'none'
+
+environment:
+  sdk: ^3.6.0
+  flutter: ">=3.3.0"
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.smstransfer.sms_telephony
+        pluginClass: SmsTelephonyPlugin
+
+dependencies:
+  flutter:
+    sdk: flutter

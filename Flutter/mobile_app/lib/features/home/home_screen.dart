@@ -161,6 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final encrypted = await CryptoService.encrypt(bodyText);
 
         encryptedBatch.add({
+          'smsId': msg['smsId'],
           'sender': msg['sender'],
           'encryptedBody': encrypted['ciphertext'],
           'iv': encrypted['iv'],

@@ -43,6 +43,11 @@ const MessageSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    // Android Telephony ContentProvider _ID
+    smsId: {
+      type: Number,
+      index: true
+    },
     messageDate: {
       type: Date,
       required: true,

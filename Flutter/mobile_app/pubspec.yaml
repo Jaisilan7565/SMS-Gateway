@@ -22,6 +22,10 @@ dependencies:
   battery_plus: ^6.0.2
   permission_handler: ^11.3.1
 
+  # Local Telephony Plugin (Registers with Background and Foreground Engines)
+  sms_telephony:
+    path: ./packages/sms_telephony
+
   # Google OAuth & Firebase Cloud Messaging
   google_sign_in: ^6.2.2
   firebase_core: ^3.8.1

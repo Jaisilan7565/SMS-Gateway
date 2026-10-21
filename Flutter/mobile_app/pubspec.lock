@@ -637,6 +637,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  sms_telephony:
+    dependency: "direct main"
+    description:
+      path: "packages/sms_telephony"
+      relative: true
+    source: path
+    version: "0.0.1"
   source_span:
     dependency: transitive
     description:

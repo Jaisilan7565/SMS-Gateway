@@ -17,19 +17,12 @@ class SMSService {
   }
 
   /// Reads SMS messages from native Android Telephony ContentProvider
+  /// Safe to call in both background isolates and foreground UI!
   static Future<List<Map<String, dynamic>>> queryInbox({
     int limit = 100,
     int? dateFrom,
     int? dateTo,
   }) async {
-    final hasPerm = await hasPermission();
-    if (!hasPerm) {
-      final granted = await requestPermissions();
-      if (!granted) {
-        throw Exception('READ_SMS permission denied by user');
-      }
-    }
-
     final result = await _channel.invokeMethod<List<dynamic>>('getMessages', {
       'limit': limit,
       'dateFrom': dateFrom,

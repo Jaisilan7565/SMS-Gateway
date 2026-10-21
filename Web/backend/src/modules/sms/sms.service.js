@@ -185,11 +185,13 @@ class SMSService {
       }
 
       // Compute deterministic SHA-256 hash for deduplication
+      // Uses invariant metadata (userId, sender, date, id/slot) so repeated uploads are idempotent
+      const idKey = msg.smsId ? `id:${msg.smsId}` : `slot:${msg.simSlot || 'UNKNOWN'}`;
       const messageHash = cryptoService.hashMessage(
         userId.toString(),
         msg.sender,
         msgTimestamp,
-        msg.encryptedBody
+        idKey
       );
 
       const messageDoc = {
@@ -201,6 +203,7 @@ class SMSService {
         iv: msg.iv,
         authTag: msg.authTag,
         messageHash,
+        smsId: msg.smsId || null,
         messageDate: new Date(msgTimestamp),
         simSlot: msg.simSlot || 'UNKNOWN',
         carrierName: msg.carrierName || '',
@@ -220,8 +223,7 @@ class SMSService {
         const decryptedBody = cryptoService.decrypt({
           ciphertext: msg.encryptedBody,
           iv: msg.iv,
-          authTag: msg.authTag,
-          aad: `${userId}:${device._id}`
+          authTag: msg.authTag
         });
 
         decryptedForBroadcast.push({
@@ -233,31 +235,14 @@ class SMSService {
           isRead: msg.isRead
         });
       } catch (e) {
-        // Fallback if AAD wasn't provided or mismatch, decrypt without AAD
-        try {
-          const fallbackBody = cryptoService.decrypt({
-            ciphertext: msg.encryptedBody,
-            iv: msg.iv,
-            authTag: msg.authTag
-          });
-          decryptedForBroadcast.push({
-            sender: msg.sender,
-            body: typeof fallbackBody === 'object' ? JSON.stringify(fallbackBody) : String(fallbackBody),
-            messageDate: new Date(msgTimestamp),
-            simSlot: msg.simSlot,
-            carrierName: msg.carrierName,
-            isRead: msg.isRead
-          });
-        } catch {
-          decryptedForBroadcast.push({
-            sender: msg.sender,
-            body: '[Encrypted - Protected Message]',
-            messageDate: new Date(msgTimestamp),
-            simSlot: msg.simSlot,
-            carrierName: msg.carrierName,
-            isRead: msg.isRead
-          });
-        }
+        decryptedForBroadcast.push({
+          sender: msg.sender,
+          body: '[Encrypted - Protected Message]',
+          messageDate: new Date(msgTimestamp),
+          simSlot: msg.simSlot,
+          carrierName: msg.carrierName,
+          isRead: msg.isRead
+        });
       }
     }
 
@@ -331,21 +316,11 @@ class SMSService {
         const decrypted = cryptoService.decrypt({
           ciphertext: msg.encryptedBody,
           iv: msg.iv,
-          authTag: msg.authTag,
-          aad: `${msg.userId?._id}:${msg.deviceId?._id}`
+          authTag: msg.authTag
         });
         bodyText = typeof decrypted === 'object' ? JSON.stringify(decrypted) : String(decrypted);
       } catch {
-        try {
-          const fallback = cryptoService.decrypt({
-            ciphertext: msg.encryptedBody,
-            iv: msg.iv,
-            authTag: msg.authTag
-          });
-          bodyText = typeof fallback === 'object' ? JSON.stringify(fallback) : String(fallback);
-        } catch {
-          bodyText = '[Decryption error: authentication tag mismatch]';
-        }
+        bodyText = '[Decryption error: authentication tag mismatch]';
       }
 
       return {

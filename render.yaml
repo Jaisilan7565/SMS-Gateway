@@ -32,7 +32,7 @@ services:
       - key: JWT_REFRESH_EXPIRES_IN
         value: 7d
       - key: ENCRYPTION_MASTER_KEY
-        generateValue: true # Render will securely generate 32-character master key
+        value: techglora_military_grade_aes_256_gcm_master_secret_2026
       - key: ADMIN_EMAIL
         value: admin@sms.com
       - key: ADMIN_PASSWORD
