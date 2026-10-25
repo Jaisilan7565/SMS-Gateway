@@ -16,16 +16,21 @@ class AuthService {
       role: user.role
     };
 
+    // Mobile gateway devices run 24/7 as dedicated infrastructure and require long-lived tokens
+    const isMobile = user.role === ROLES.MOBILE_USER;
+    const accessExpiresIn = isMobile ? (process.env.JWT_MOBILE_EXPIRES_IN || '90d') : (process.env.JWT_EXPIRES_IN || '1d');
+    const refreshExpiresIn = isMobile ? (process.env.JWT_MOBILE_REFRESH_EXPIRES_IN || '365d') : (process.env.JWT_REFRESH_EXPIRES_IN || '7d');
+
     const accessToken = jwt.sign(
       payload,
       process.env.JWT_SECRET || 'techglora_jwt_secret_dev_key_32chars_minimum_2026!',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
+      { expiresIn: accessExpiresIn }
     );
 
     const refreshToken = jwt.sign(
       payload,
       process.env.JWT_REFRESH_SECRET || 'techglora_jwt_refresh_dev_key_32chars_minimum_2026!',
-      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+      { expiresIn: refreshExpiresIn }
     );
 
     return { accessToken, refreshToken };

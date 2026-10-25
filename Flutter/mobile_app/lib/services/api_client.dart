@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -6,6 +7,8 @@ class ApiClient {
   static late Dio _dio;
   static String _baseUrl =
       'https://sms-transfer-backend.onrender.com/api/v1'; // Default Android Emulator to localhost
+
+  static Completer<bool>? _refreshCompleter;
 
   static Future<void> initialize() async {
     final savedUrl = await _storage.read(key: 'server_url');
@@ -26,13 +29,94 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final token = await _storage.read(key: 'access_token');
-          if (token != null) {
+          if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
           return handler.next(options);
         },
+        onError: (DioException error, ErrorInterceptorHandler handler) async {
+          final path = error.requestOptions.path;
+          final isAuthEndpoint = path.contains('/auth/mobile/login') ||
+              path.contains('/auth/mobile/register') ||
+              path.contains('/auth/mobile/google') ||
+              path.contains('/auth/refresh');
+
+          // If request failed with 401 Unauthorized, automatically refresh session token
+          if (error.response?.statusCode == 401 && !isAuthEndpoint) {
+            final refreshed = await tryRefreshToken();
+            if (refreshed) {
+              final newToken = await _storage.read(key: 'access_token');
+              final options = error.requestOptions;
+              options.headers['Authorization'] = 'Bearer $newToken';
+              try {
+                final response = await _dio.fetch(options);
+                return handler.resolve(response);
+              } catch (retryError) {
+                if (retryError is DioException) {
+                  return handler.next(retryError);
+                }
+              }
+            }
+          }
+          return handler.next(error);
+        },
       ),
     );
+  }
+
+  /// Refreshes the mobile JWT access token using the stored refresh token
+  static Future<bool> tryRefreshToken() async {
+    if (_refreshCompleter != null) {
+      return await _refreshCompleter!.future;
+    }
+
+    _refreshCompleter = Completer<bool>();
+    try {
+      final refreshToken = await _storage.read(key: 'refresh_token');
+      if (refreshToken == null || refreshToken.isEmpty) {
+        _refreshCompleter?.complete(false);
+        _refreshCompleter = null;
+        return false;
+      }
+
+      final refreshDio = Dio(
+        BaseOptions(
+          baseUrl: _baseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 10),
+          headers: {'Content-Type': 'application/json'},
+        ),
+      );
+
+      final res = await refreshDio.post('/auth/refresh', data: {
+        'refreshToken': refreshToken,
+      });
+
+      if (res.statusCode == 200 && res.data['data'] != null) {
+        final data = res.data['data'];
+        final newAccess = data['accessToken'] as String?;
+        final newRefresh = data['refreshToken'] as String?;
+
+        if (newAccess != null && newAccess.isNotEmpty) {
+          await _storage.write(key: 'access_token', value: newAccess);
+        }
+        if (newRefresh != null && newRefresh.isNotEmpty) {
+          await _storage.write(key: 'refresh_token', value: newRefresh);
+        }
+
+        _refreshCompleter?.complete(true);
+        _refreshCompleter = null;
+        return true;
+      }
+
+      _refreshCompleter?.complete(false);
+      _refreshCompleter = null;
+      return false;
+    } catch (_) {
+      _refreshCompleter?.complete(false);
+      _refreshCompleter = null;
+      return false;
+    }
   }
 
   static String get baseUrl => _baseUrl;
@@ -59,6 +143,9 @@ class ApiClient {
     });
     final data = res.data['data'];
     await _storage.write(key: 'access_token', value: data['accessToken']);
+    if (data['refreshToken'] != null && (data['refreshToken'] as String).isNotEmpty) {
+      await _storage.write(key: 'refresh_token', value: data['refreshToken']);
+    }
     await _storage.write(key: 'user_email', value: email);
     return data;
   }
@@ -75,6 +162,9 @@ class ApiClient {
     });
     final data = res.data['data'];
     await _storage.write(key: 'access_token', value: data['accessToken']);
+    if (data['refreshToken'] != null && (data['refreshToken'] as String).isNotEmpty) {
+      await _storage.write(key: 'refresh_token', value: data['refreshToken']);
+    }
     await _storage.write(key: 'user_email', value: email);
     return data;
   }
@@ -98,6 +188,9 @@ class ApiClient {
     final res = await _dio.post('/auth/mobile/google', data: payload);
     final data = res.data['data'];
     await _storage.write(key: 'access_token', value: data['accessToken']);
+    if (data['refreshToken'] != null && (data['refreshToken'] as String).isNotEmpty) {
+      await _storage.write(key: 'refresh_token', value: data['refreshToken']);
+    }
     if (data['user']?['email'] != null) {
       await _storage.write(key: 'user_email', value: data['user']['email']);
     }
@@ -112,6 +205,7 @@ class ApiClient {
       } catch (_) {}
     }
     await _storage.delete(key: 'access_token');
+    await _storage.delete(key: 'refresh_token');
     await _storage.delete(key: 'device_id');
     await _storage.delete(key: 'user_email');
   }
@@ -134,11 +228,13 @@ class ApiClient {
     required String deviceId,
     int? batteryLevel,
     bool? isCharging,
+    String? fcmToken,
   }) async {
     try {
       final res = await _dio.patch('/devices/$deviceId/heartbeat', data: {
         if (batteryLevel != null) 'batteryLevel': batteryLevel,
         if (isCharging != null) 'isCharging': isCharging,
+        if (fcmToken != null && fcmToken.isNotEmpty) 'fcmToken': fcmToken,
       });
       return res.statusCode == 200;
     } catch (_) {

@@ -73,7 +73,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     try {
       final battery = Battery();
       final lvl = await battery.batteryLevel;
-      final success = await ApiClient.sendHeartbeat(deviceId: _deviceId, batteryLevel: lvl);
+      final success = await ApiClient.sendHeartbeat(
+        deviceId: _deviceId,
+        batteryLevel: lvl,
+        fcmToken: _fcmToken,
+      );
 
       if (success) {
         if (!_isOnline) {
@@ -189,6 +193,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // Setup real-time automatic incoming SMS forwarder
     await SMSService.initializeIncomingSmsListener(_handleIncomingSmsAutomatically);
+
+    // Setup FCM token rotation listener
+    FCMService.listenToTokenRefresh((newToken) async {
+      if (mounted) {
+        setState(() => _fcmToken = newToken);
+      }
+      if (_deviceId.isNotEmpty) {
+        await ApiClient.sendHeartbeat(
+          deviceId: _deviceId,
+          batteryLevel: _batteryLevel,
+          fcmToken: newToken,
+        );
+      }
+    });
   }
 
   /// Automatically forwards any received SMS message to the Gateway server immediately

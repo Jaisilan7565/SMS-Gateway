@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -120,6 +121,17 @@ class FCMService {
     }
     // Return mock fallback for local simulator/offline mode
     return 'mock_fcm_token_device_${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  static StreamSubscription<String>? _tokenRefreshSub;
+
+  /// Listens for Firebase FCM token rotation events
+  static void listenToTokenRefresh(void Function(String newToken) onRefresh) {
+    _tokenRefreshSub?.cancel();
+    _tokenRefreshSub = FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+      debugPrint('FCM Token refreshed: $newToken');
+      onRefresh(newToken);
+    });
   }
 
   static void initializeForegroundListener({

@@ -67,8 +67,8 @@ class DeviceService {
     if (device.status === DEVICE_STATUS.INACTIVE) {
       return DEVICE_STATUS.INACTIVE;
     }
-    // Consider offline if no heartbeat or activity for > 3 minutes
-    const OFFLINE_THRESHOLD_MS = 3 * 60 * 1000;
+    // Consider offline if no heartbeat or activity for > 10 minutes (accommodates Android Doze mode & battery maintenance windows)
+    const OFFLINE_THRESHOLD_MS = 10 * 60 * 1000;
     if (!device.lastSeenAt || Date.now() - new Date(device.lastSeenAt).getTime() > OFFLINE_THRESHOLD_MS) {
       return DEVICE_STATUS.OFFLINE;
     }
